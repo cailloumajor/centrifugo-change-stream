@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "semanticCommits": "enabled",
+  "packageRules": [
+    {
+      "matchPackageNames": ["rust", "tonistiigi/xx"],
+      "matchManagers": ["dockerfile"],
+      "semanticCommitType": "fix"
+    },
+    {
+      "matchDepTypes": ["dev-dependencies"],
+      "automerge": true,
+      "automergeType": "branch"
+    }
+  ]
+}

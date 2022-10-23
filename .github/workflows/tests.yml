@@ -1,0 +1,105 @@
+name: Tests and code quality
+
+on:
+  push:
+    branches:
+      - main
+      - "renovate/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: same_content
+          do_not_skip: '["pull_request", "release", "workflow_dispatch", "schedule"]'
+          skip_after_successful_duplicate: true
+  tests:
+    name: Code quality, unit tests and code coverage
+    runs-on: ubuntu-latest
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get Rust version from Dockerfile
+        id: get-rust-version
+        run: echo "::set-output name=RUST_VERSION::$(grep -oP 'FROM .* rust:\K[\d.]+' Dockerfile)"
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ steps.get-rust-version.outputs.RUST_VERSION }}
+          override: true
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Lint code with Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+      - name: Install grcov
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: grcov
+      - name: Run unit tests
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTFLAGS: -Cinstrument-coverage
+          LLVM_PROFILE_FILE: coverage-%p-%m.profraw
+        with:
+          command: test
+      - name: Generate coverage report
+        run: |
+          grcov $(find . -name "coverage-*.profraw" -print) \
+            --binary-path ./target/debug/ \
+            --branch \
+            --ignore "/*" \
+            --ignore-not-existing \
+            --output-path lcov.info \
+            --output-type lcov \
+            --source-dir .
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+          files: lcov.info
+          flags: unittests
+      - name: Check command usage in README.md
+        # Thanks to https://unix.stackexchange.com/a/17405
+        run: diff
+          <(sed '1,/\$ centrifugo-change-stream --help/d;/```/,$d' README.md)
+          <(cargo run --quiet --bin centrifugo-change-stream -- --help)
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-22.04
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build local image
+        uses: docker/build-push-action@v3
+        with:
+          load: true
+          tags: centrifugo-change-stream:integration-tests
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run integration tests
+        run: ./smoke_test.sh --log-file ${{ runner.temp }}/integration_tests.log
+        working-directory: integration
+      - name: Print service logs
+        run: cat ${{ runner.temp }}/integration_tests.log
