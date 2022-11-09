@@ -63,22 +63,15 @@ pub(crate) async fn create_change_stream(config: &Config) -> anyhow::Result<Chan
     Ok(change_stream)
 }
 
-pub(crate) struct DatabaseActor {
-    pub(crate) tags_update_recipient: Recipient<TagsUpdate>,
-}
+impl TagsUpdate {
+    fn from_change_stream_item(item: ChangeStreamItem) -> Option<Self> {
+        let _entered = info_span!("TagsUpdate::from_change_stream_item").entered();
 
-impl Actor for DatabaseActor {
-    type Context = Context<Self>;
-}
-
-impl StreamHandler<ChangeStreamItem> for DatabaseActor {
-    fn handle(&mut self, item: ChangeStreamItem, _ctx: &mut Self::Context) {
-        let _entered = info_span!("handle change stream item").entered();
         let event = match item {
             Ok(ev) => ev,
             Err(err) => {
                 error!(kind = "change stream item", %err);
-                return;
+                return None;
             }
         };
         debug!(?event);
@@ -86,35 +79,35 @@ impl StreamHandler<ChangeStreamItem> for DatabaseActor {
             Some(ns) => ns,
             None => {
                 error!(msg = "missing event `ns` member");
-                return;
+                return None;
             }
         };
         let collection = match ns.coll {
             Some(coll) => coll,
             None => {
                 error!(msg = "missing collection");
-                return;
+                return None;
             }
         };
         let document_key = match event.document_key {
             Some(doc_key) => doc_key,
             None => {
                 error!(msg = "missing document key");
-                return;
+                return None;
             }
         };
         let updated_id = match document_key.get_str("_id") {
             Ok(id) => id.to_owned(),
             Err(err) => {
                 error!(kind = "getting updated document id", %err);
-                return;
+                return None;
             }
         };
         let update_description = match event.update_description {
             Some(desc) => desc,
             None => {
                 error!(msg = "missing update description");
-                return;
+                return None;
             }
         };
         let deserializer_options = DeserializerOptions::builder().human_readable(false).build();
@@ -125,7 +118,7 @@ impl StreamHandler<ChangeStreamItem> for DatabaseActor {
             Ok(updated) => updated,
             Err(err) => {
                 error!(kind = "deserializing updated fields", %err);
-                return;
+                return None;
             }
         };
         debug!(?updated_fields);
@@ -138,14 +131,179 @@ impl StreamHandler<ChangeStreamItem> for DatabaseActor {
             })
             .collect();
 
-        let tags_update = TagsUpdate {
+        Some(TagsUpdate {
             namespace: ns.db + "-" + collection.as_str(),
             channel_name: updated_id,
             data: tags_update_data,
+        })
+    }
+}
+
+pub(crate) struct DatabaseActor {
+    pub(crate) tags_update_recipient: Recipient<TagsUpdate>,
+}
+
+impl Actor for DatabaseActor {
+    type Context = Context<Self>;
+}
+
+impl StreamHandler<ChangeStreamItem> for DatabaseActor {
+    fn handle(&mut self, item: ChangeStreamItem, _ctx: &mut Self::Context) {
+        let _entered = info_span!("handle change stream item").entered();
+
+        let Some(tags_update) = TagsUpdate::from_change_stream_item(item) else {
+            return;
         };
 
         if let Err(err) = self.tags_update_recipient.try_send(tags_update) {
             error!(kind = "sending tags update", %err);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use tracing_subscriber::filter::LevelFilter;
+
+    use super::*;
+
+    struct PrintingOutput;
+
+    impl io::Write for PrintingOutput {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            print!("{}", String::from_utf8(buf.to_vec()).unwrap());
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn init_tracing_subscriber() {
+        _ = tracing_subscriber::fmt()
+            .with_max_level(LevelFilter::ERROR)
+            .with_writer(|| PrintingOutput {})
+            .try_init()
+    }
+
+    mod tags_update {
+        use super::*;
+
+        mod from_change_stream_item {
+            use std::io::ErrorKind;
+
+            use super::*;
+
+            fn create_change_stream_event() -> ChangeStreamEvent<Document> {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "ns": {
+                        "db": "testdb",
+                        "coll": "testcoll"
+                    },
+                    "documentKey": {
+                        "_id": "anid"
+                    },
+                    "updateDescription": {
+                        "updatedFields": {
+                            "updatedAt": DateTime::from_millis(0),
+                            "data.first": 9,
+                            "data.second": "other"
+                        },
+                        "removedFields": []
+                    }
+                };
+                bson::from_document(document).unwrap()
+            }
+
+            #[test]
+            fn err_item() {
+                init_tracing_subscriber();
+                let item = Err(ErrorKind::Other.into());
+                let update = TagsUpdate::from_change_stream_item(item);
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_ns() {
+                init_tracing_subscriber();
+                let mut item = create_change_stream_event();
+                item.ns = None;
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_coll() {
+                init_tracing_subscriber();
+                let mut item = create_change_stream_event();
+                item.ns.as_mut().unwrap().coll = None;
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_document_key() {
+                init_tracing_subscriber();
+                let mut item = create_change_stream_event();
+                item.document_key = None;
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn wrong_updated_document_id_type() {
+                init_tracing_subscriber();
+                let mut item = create_change_stream_event();
+                *item.document_key.as_mut().unwrap() = doc! { "_id": 42 };
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_update_description() {
+                init_tracing_subscriber();
+                let mut item = create_change_stream_event();
+                item.update_description = None;
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn error_deserializing_updated_fields() {
+                init_tracing_subscriber();
+                let mut item = create_change_stream_event();
+                item.update_description
+                    .as_mut()
+                    .unwrap()
+                    .updated_fields
+                    .clear();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn success() {
+                init_tracing_subscriber();
+                let item = create_change_stream_event();
+                let update = TagsUpdate::from_change_stream_item(Ok(item)).unwrap();
+
+                assert_eq!(update.namespace, "testdb-testcoll");
+                assert_eq!(update.channel_name, "anid");
+                assert_eq!(update.data["first"], 9);
+                assert_eq!(update.data["second"], "other");
+            }
         }
     }
 }
