@@ -77,6 +77,9 @@ jobs:
           fail_ci_if_error: true
           files: lcov.info
           flags: unittests
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
       - name: Check command usage in README.md
         # Thanks to https://unix.stackexchange.com/a/17405
         run: diff
