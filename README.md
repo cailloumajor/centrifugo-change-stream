@@ -58,5 +58,23 @@ sequenceDiagram
 
 ```shellSession
 $ centrifugo-change-stream --help
-🚧
+Usage: centrifugo-change-stream [OPTIONS] --centrifugo-api-url <CENTRIFUGO_API_URL> --centrifugo-api-key <CENTRIFUGO_API_KEY> --mongodb-database <MONGODB_DATABASE> --mongodb-collection <MONGODB_COLLECTION>
+
+Options:
+  -v, --verbose...
+          More output per occurrence
+  -q, --quiet...
+          Less output per occurrence
+      --centrifugo-api-url <CENTRIFUGO_API_URL>
+          Centrifugo server API URL [env: CENTRIFUGO_API_URL=]
+      --centrifugo-api-key <CENTRIFUGO_API_KEY>
+          Centrifugo API key [env: CENTRIFUGO_API_KEY=]
+      --mongodb-uri <MONGODB_URI>
+          URI of MongoDB server [env: MONGODB_URI=] [default: mongodb://mongo]
+      --mongodb-database <MONGODB_DATABASE>
+          MongoDB database [env: MONGODB_DATABASE=]
+      --mongodb-collection <MONGODB_COLLECTION>
+          MongoDB collection [env: MONGODB_COLLECTION=]
+  -h, --help
+          Print help information
 ```
