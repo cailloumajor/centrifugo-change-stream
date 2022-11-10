@@ -27,4 +27,9 @@ features = [ "std", "help", "usage", "error-context", "derive", "env" ]
 [dependencies.tracing-subscriber]
 version = "0.3.16"
 default-features = false
-features = [ "smallvec", "fmt", "ansi" ]
+features = [ "smallvec", "fmt", "ansi", "env-filter" ]
+
+[dev-dependencies.test-log]
+version = "0.2.11"
+default-features = false
+features = [ "trace" ]

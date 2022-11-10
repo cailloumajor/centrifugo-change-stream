@@ -163,31 +163,7 @@ impl StreamHandler<ChangeStreamItem> for DatabaseActor {
 
 #[cfg(test)]
 mod tests {
-    use std::io;
-
-    use tracing_subscriber::filter::LevelFilter;
-
     use super::*;
-
-    struct PrintingOutput;
-
-    impl io::Write for PrintingOutput {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            print!("{}", String::from_utf8(buf.to_vec()).unwrap());
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    fn init_tracing_subscriber() {
-        _ = tracing_subscriber::fmt()
-            .with_max_level(LevelFilter::ERROR)
-            .with_writer(|| PrintingOutput {})
-            .try_init()
-    }
 
     mod tags_update {
         use super::*;
@@ -195,9 +171,162 @@ mod tests {
         mod from_change_stream_item {
             use std::io::ErrorKind;
 
+            use test_log::test;
+
             use super::*;
 
-            fn create_change_stream_event() -> ChangeStreamEvent<Document> {
+            #[test]
+            fn err_item() {
+                let item = Err(ErrorKind::Other.into());
+                let update = TagsUpdate::from_change_stream_item(item);
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_ns() {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "documentKey": {
+                        "_id": "anid"
+                    },
+                    "updateDescription": {
+                        "updatedFields": {
+                            "updatedAt": DateTime::from_millis(0),
+                            "data.first": 9,
+                            "data.second": "other"
+                        },
+                        "removedFields": []
+                    }
+                };
+                let item = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_coll() {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "ns": {
+                        "db": "testdb"
+                    },
+                    "documentKey": {
+                        "_id": "anid"
+                    },
+                    "updateDescription": {
+                        "updatedFields": {
+                            "updatedAt": DateTime::from_millis(0),
+                            "data.first": 9,
+                            "data.second": "other"
+                        },
+                        "removedFields": []
+                    }
+                };
+                let item = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_document_key() {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "ns": {
+                        "db": "testdb",
+                        "coll": "testcoll"
+                    },
+                    "updateDescription": {
+                        "updatedFields": {
+                            "updatedAt": DateTime::from_millis(0),
+                            "data.first": 9,
+                            "data.second": "other"
+                        },
+                        "removedFields": []
+                    }
+                };
+                let item = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn wrong_updated_document_id_type() {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "ns": {
+                        "db": "testdb",
+                        "coll": "testcoll"
+                    },
+                    "documentKey": {
+                        "_id": 42
+                    },
+                    "updateDescription": {
+                        "updatedFields": {
+                            "updatedAt": DateTime::from_millis(0),
+                            "data.first": 9,
+                            "data.second": "other"
+                        },
+                        "removedFields": []
+                    }
+                };
+                let item = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn missing_update_description() {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "ns": {
+                        "db": "testdb",
+                        "coll": "testcoll"
+                    },
+                    "documentKey": {
+                        "_id": "anid"
+                    }
+                };
+                let item = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn error_deserializing_updated_fields() {
+                let document = doc! {
+                    "_id": Bson::Null,
+                    "operationType": "update",
+                    "ns": {
+                        "db": "testdb",
+                        "coll": "testcoll"
+                    },
+                    "documentKey": {
+                        "_id": "anid"
+                    },
+                    "updateDescription": {
+                        "updatedFields": {},
+                        "removedFields": []
+                    }
+                };
+                let item = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_item(Ok(item));
+
+                assert!(update.is_none());
+            }
+
+            #[test]
+            fn success() {
                 let document = doc! {
                     "_id": Bson::Null,
                     "operationType": "update",
@@ -217,86 +346,7 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                bson::from_document(document).unwrap()
-            }
-
-            #[test]
-            fn err_item() {
-                init_tracing_subscriber();
-                let item = Err(ErrorKind::Other.into());
-                let update = TagsUpdate::from_change_stream_item(item);
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn missing_ns() {
-                init_tracing_subscriber();
-                let mut item = create_change_stream_event();
-                item.ns = None;
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn missing_coll() {
-                init_tracing_subscriber();
-                let mut item = create_change_stream_event();
-                item.ns.as_mut().unwrap().coll = None;
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn missing_document_key() {
-                init_tracing_subscriber();
-                let mut item = create_change_stream_event();
-                item.document_key = None;
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn wrong_updated_document_id_type() {
-                init_tracing_subscriber();
-                let mut item = create_change_stream_event();
-                *item.document_key.as_mut().unwrap() = doc! { "_id": 42 };
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn missing_update_description() {
-                init_tracing_subscriber();
-                let mut item = create_change_stream_event();
-                item.update_description = None;
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn error_deserializing_updated_fields() {
-                init_tracing_subscriber();
-                let mut item = create_change_stream_event();
-                item.update_description
-                    .as_mut()
-                    .unwrap()
-                    .updated_fields
-                    .clear();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
-
-                assert!(update.is_none());
-            }
-
-            #[test]
-            fn success() {
-                init_tracing_subscriber();
-                let item = create_change_stream_event();
+                let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item)).unwrap();
 
                 assert_eq!(update.namespace, "testdb-testcoll");
