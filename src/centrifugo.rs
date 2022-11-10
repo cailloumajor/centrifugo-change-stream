@@ -13,7 +13,7 @@ type HttpClient = trillium_client::Client<TcpConnector>;
 #[group(skip)]
 pub(crate) struct Config {
     /// Centrifugo server API URL
-    #[arg(env, long)]
+    #[arg(env, long, default_value = "http://centrifugo:8000/api")]
     centrifugo_api_url: Url,
 
     /// Centrifugo API key
