@@ -5,6 +5,7 @@ use clap_verbosity_flag::{InfoLevel, LogLevel, Verbosity};
 
 mod centrifugo;
 mod db;
+mod errors;
 
 #[derive(Parser)]
 struct Args {

@@ -12,6 +12,7 @@ use serde::Deserialize;
 use tracing::{debug, error, info, info_span, instrument};
 
 use crate::centrifugo::TagsUpdate;
+use crate::errors::{TracedError, TracedErrorContext};
 
 type ChangeStream = mongodb::change_stream::ChangeStream<ChangeStreamEvent<Document>>;
 type ChangeStreamItem = <ChangeStream as Stream>::Item;
@@ -64,63 +65,33 @@ pub(crate) async fn create_change_stream(config: &Config) -> anyhow::Result<Chan
 }
 
 impl TagsUpdate {
-    fn from_change_stream_item(item: ChangeStreamItem) -> Option<Self> {
+    fn from_change_stream_item(item: ChangeStreamItem) -> Result<Self, TracedError> {
         let _entered = info_span!("TagsUpdate::from_change_stream_item").entered();
 
-        let event = match item {
-            Ok(ev) => ev,
-            Err(err) => {
-                error!(kind = "change stream item", %err);
-                return None;
-            }
-        };
+        let event = item.context_kind("change stream item")?;
         debug!(?event);
-        let ns = match event.ns {
-            Some(ns) => ns,
-            None => {
-                error!(msg = "missing event `ns` member");
-                return None;
-            }
-        };
-        let collection = match ns.coll {
-            Some(coll) => coll,
-            None => {
-                error!(msg = "missing collection");
-                return None;
-            }
-        };
-        let document_key = match event.document_key {
-            Some(doc_key) => doc_key,
-            None => {
-                error!(msg = "missing document key");
-                return None;
-            }
-        };
-        let updated_id = match document_key.get_str("_id") {
-            Ok(id) => id.to_owned(),
-            Err(err) => {
-                error!(kind = "getting updated document id", %err);
-                return None;
-            }
-        };
-        let update_description = match event.update_description {
-            Some(desc) => desc,
-            None => {
-                error!(msg = "missing update description");
-                return None;
-            }
-        };
+        let ns = event
+            .ns
+            .ok_or_else(|| TracedError::from_msg("missing event `ns` member"))?;
+        let collection = ns
+            .coll
+            .ok_or_else(|| TracedError::from_msg("missing collection"))?;
+        let document_key = event
+            .document_key
+            .ok_or_else(|| TracedError::from_msg("missing document key"))?;
+        let updated_id = document_key
+            .get_str("_id")
+            .map(String::from)
+            .context_during("getting updated document id")?;
+        let update_description = event
+            .update_description
+            .ok_or_else(|| TracedError::from_msg("missing update description"))?;
         let deserializer_options = DeserializerOptions::builder().human_readable(false).build();
-        let updated_fields: UpdatedFields = match bson::from_document_with_options(
+        let updated_fields: UpdatedFields = bson::from_document_with_options(
             update_description.updated_fields,
             deserializer_options,
-        ) {
-            Ok(updated) => updated,
-            Err(err) => {
-                error!(kind = "deserializing updated fields", %err);
-                return None;
-            }
-        };
+        )
+        .context_during("deserializing updated fields")?;
         debug!(?updated_fields);
         let tags_update_data = updated_fields
             .data
@@ -131,7 +102,7 @@ impl TagsUpdate {
             })
             .collect();
 
-        Some(TagsUpdate {
+        Ok(Self {
             namespace: ns.db + "-" + collection.as_str(),
             channel_name: updated_id,
             data: tags_update_data,
@@ -151,8 +122,12 @@ impl StreamHandler<ChangeStreamItem> for DatabaseActor {
     fn handle(&mut self, item: ChangeStreamItem, _ctx: &mut Self::Context) {
         let _entered = info_span!("handle change stream item").entered();
 
-        let Some(tags_update) = TagsUpdate::from_change_stream_item(item) else {
-            return;
+        let tags_update = match TagsUpdate::from_change_stream_item(item) {
+            Ok(tags_update) => tags_update,
+            Err(err) => {
+                err.trace_error();
+                return;
+            }
         };
 
         if let Err(err) = self.tags_update_recipient.try_send(tags_update) {
@@ -171,8 +146,6 @@ mod tests {
         mod from_change_stream_item {
             use std::io::ErrorKind;
 
-            use test_log::test;
-
             use super::*;
 
             #[test]
@@ -180,7 +153,7 @@ mod tests {
                 let item = Err(ErrorKind::Other.into());
                 let update = TagsUpdate::from_change_stream_item(item);
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
@@ -203,7 +176,7 @@ mod tests {
                 let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item));
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
@@ -229,7 +202,7 @@ mod tests {
                 let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item));
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
@@ -253,7 +226,7 @@ mod tests {
                 let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item));
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
@@ -280,7 +253,7 @@ mod tests {
                 let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item));
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
@@ -299,7 +272,7 @@ mod tests {
                 let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item));
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
@@ -322,7 +295,7 @@ mod tests {
                 let item = bson::from_document(document).unwrap();
                 let update = TagsUpdate::from_change_stream_item(Ok(item));
 
-                assert!(update.is_none());
+                assert!(update.is_err());
             }
 
             #[test]
