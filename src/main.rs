@@ -1,17 +1,24 @@
-use actix::{Actor, StreamHandler, System};
-use anyhow::{Context, Result};
+use actix::{Actor, Arbiter, StreamHandler, System};
+use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, LogLevel, Verbosity};
+use tracing::{info, info_span, Instrument};
+
+use centrifugo_change_stream::CommonArgs;
 
 mod centrifugo;
 mod db;
 mod errors;
 mod health;
+mod http_api;
 
 #[derive(Parser)]
 struct Args {
     #[command(flatten)]
     verbose: Verbosity<InfoLevel>,
+
+    #[command(flatten)]
+    common: CommonArgs,
 
     #[command(flatten)]
     centrifugo: centrifugo::Config,
@@ -44,11 +51,8 @@ fn main() -> Result<()> {
 
     let system = System::new();
 
-    let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
-
-    let change_stream = system.block_on(db::create_change_stream(&args.mongodb))?;
-
     let centrifugo_addr = system.block_on(async {
+        let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
         centrifugo::CentrifugoActor {
             client: centrifugo_client,
         }
@@ -56,13 +60,14 @@ fn main() -> Result<()> {
     });
 
     let database_addr = system.block_on(async {
-        db::DatabaseActor::create(|ctx| {
+        let change_stream = db::create_change_stream(&args.mongodb).await?;
+        Ok::<_, anyhow::Error>(db::DatabaseActor::create(|ctx| {
             db::DatabaseActor::add_stream(change_stream, ctx);
             db::DatabaseActor {
                 tags_update_recipient: centrifugo_addr.clone().recipient(),
             }
-        })
-    });
+        }))
+    })?;
 
     let health_addr = system.block_on(async {
         let addr = health::HealthService::start_default();
@@ -80,6 +85,22 @@ fn main() -> Result<()> {
         .context("failed to subscribe database actor for health")?;
         Ok::<_, anyhow::Error>(addr)
     })?;
+
+    let handler = http_api::handler(health_addr.recipient());
+
+    let sent = Arbiter::current().spawn(
+        async move {
+            info!(addr = %args.common.listen_address, msg="start listening");
+            trillium_tokio::config()
+                .with_host(&args.common.listen_address.ip().to_string())
+                .with_port(args.common.listen_address.port())
+                .without_signals()
+                .run_async(handler)
+                .await;
+        }
+        .instrument(info_span!("http_server_task")),
+    );
+    ensure!(sent, "http server spawning error");
 
     system.run().context("error running system")
 }

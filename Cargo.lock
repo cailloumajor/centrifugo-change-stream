@@ -209,7 +209,9 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
+ "trillium",
  "trillium-client",
+ "trillium-router",
  "trillium-testing",
  "trillium-tokio",
  "url",
@@ -1214,6 +1216,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "routefinder"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54e6ab7fb7d4627afa0d64a31cdf9545a23906a6f107bd7c9a6e4ec8fb952ea5"
+dependencies = [
+ "smartcow",
+ "smartstring",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1794,6 +1806,17 @@ dependencies = [
  "smartstring",
  "stopper",
  "thiserror",
+]
+
+[[package]]
+name = "trillium-router"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9e62e1513b788dc2a35dd91d44b04d4735205ad36e825b1fb608b88b7a7b4ff"
+dependencies = [
+ "log",
+ "routefinder",
+ "trillium",
 ]
 
 [[package]]
