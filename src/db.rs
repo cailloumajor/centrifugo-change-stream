@@ -4,8 +4,8 @@ use std::time::Duration;
 use actix::prelude::*;
 use anyhow::Context as _;
 use clap::Args;
+use futures_util::{future, StreamExt, TryStreamExt};
 use mongodb::bson::{self, doc, Bson, DateTime, DeserializerOptions, Document};
-use mongodb::change_stream::event::ChangeStreamEvent;
 use mongodb::options::ClientOptions;
 use mongodb::Client;
 use serde::Deserialize;
@@ -14,8 +14,7 @@ use tracing::{debug, error, info, info_span, instrument};
 use crate::centrifugo::TagsUpdate;
 use crate::errors::{TracedError, TracedErrorContext};
 
-type ChangeStream = mongodb::change_stream::ChangeStream<ChangeStreamEvent<Document>>;
-type ChangeStreamItem = <ChangeStream as Stream>::Item;
+type ChangeStreamEvent = mongodb::change_stream::event::ChangeStreamEvent<Document>;
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");
 
@@ -45,7 +44,9 @@ struct UpdatedFields {
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn create_change_stream(config: &Config) -> anyhow::Result<ChangeStream> {
+pub(crate) async fn create_change_stream(
+    config: &Config,
+) -> anyhow::Result<impl Stream<Item = ChangeStreamEvent>> {
     let mut options = ClientOptions::parse(&config.mongodb_uri)
         .await
         .context("error parsing connection string URI")?;
@@ -58,18 +59,23 @@ pub(crate) async fn create_change_stream(config: &Config) -> anyhow::Result<Chan
         .collection::<Document>(&config.mongodb_collection)
         .watch(pipeline, None)
         .await
-        .context("error starting change stream")?;
+        .context("error starting change stream")?
+        .inspect_err(|err| {
+            let _entered = info_span!("change stream error inspect").entered();
+            error!(kind="change stream error", %err);
+        })
+        .take_while(|item| future::ready(item.is_ok()))
+        .map(|item| item.unwrap());
 
     info!(status = "success");
     Ok(change_stream)
 }
 
 impl TagsUpdate {
-    fn from_change_stream_item(item: ChangeStreamItem) -> Result<Self, TracedError> {
-        let _entered = info_span!("TagsUpdate::from_change_stream_item").entered();
-
-        let event = item.context_kind("change stream item")?;
+    fn from_change_stream_event(event: ChangeStreamEvent) -> Result<Self, TracedError> {
+        let _entered = info_span!("TagsUpdate::from_change_stream_event").entered();
         debug!(?event);
+
         let ns = event
             .ns
             .ok_or_else(|| TracedError::from_msg("missing event `ns` member"))?;
@@ -118,11 +124,11 @@ impl Actor for DatabaseActor {
     type Context = Context<Self>;
 }
 
-impl StreamHandler<ChangeStreamItem> for DatabaseActor {
-    fn handle(&mut self, item: ChangeStreamItem, _ctx: &mut Self::Context) {
+impl StreamHandler<ChangeStreamEvent> for DatabaseActor {
+    fn handle(&mut self, item: ChangeStreamEvent, _ctx: &mut Self::Context) {
         let _entered = info_span!("handle change stream item").entered();
 
-        let tags_update = match TagsUpdate::from_change_stream_item(item) {
+        let tags_update = match TagsUpdate::from_change_stream_event(item) {
             Ok(tags_update) => tags_update,
             Err(err) => {
                 err.trace_error();
@@ -134,6 +140,12 @@ impl StreamHandler<ChangeStreamItem> for DatabaseActor {
             error!(kind = "sending tags update", %err);
         }
     }
+
+    fn finished(&mut self, _ctx: &mut Self::Context) {
+        let _entered = info_span!("DatabaseActor::finished").entered();
+        error!(kind = "fatal", err = "change stream finished");
+        System::current().stop();
+    }
 }
 
 #[cfg(test)]
@@ -143,18 +155,8 @@ mod tests {
     mod tags_update {
         use super::*;
 
-        mod from_change_stream_item {
-            use std::io::ErrorKind;
-
+        mod from_change_stream_event {
             use super::*;
-
-            #[test]
-            fn err_item() {
-                let item = Err(ErrorKind::Other.into());
-                let update = TagsUpdate::from_change_stream_item(item);
-
-                assert!(update.is_err());
-            }
 
             #[test]
             fn missing_ns() {
@@ -173,8 +175,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event);
 
                 assert!(update.is_err());
             }
@@ -199,8 +201,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event);
 
                 assert!(update.is_err());
             }
@@ -223,8 +225,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event);
 
                 assert!(update.is_err());
             }
@@ -250,8 +252,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event);
 
                 assert!(update.is_err());
             }
@@ -269,8 +271,8 @@ mod tests {
                         "_id": "anid"
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event);
 
                 assert!(update.is_err());
             }
@@ -292,8 +294,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item));
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event);
 
                 assert!(update.is_err());
             }
@@ -319,8 +321,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let item = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_item(Ok(item)).unwrap();
+                let event = bson::from_document(document).unwrap();
+                let update = TagsUpdate::from_change_stream_event(event).unwrap();
 
                 assert_eq!(update.namespace, "testdb-testcoll");
                 assert_eq!(update.channel_name, "anid");
