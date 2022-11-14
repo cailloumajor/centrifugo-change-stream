@@ -71,25 +71,27 @@ pub(crate) async fn create_change_stream(
     Ok(change_stream)
 }
 
-impl TagsUpdate {
-    fn from_change_stream_event(event: ChangeStreamEvent) -> Result<Self, TracedError> {
-        let _entered = info_span!("TagsUpdate::from_change_stream_event").entered();
-        debug!(?event);
+impl TryFrom<ChangeStreamEvent> for TagsUpdate {
+    type Error = TracedError;
 
-        let ns = event
+    fn try_from(value: ChangeStreamEvent) -> Result<Self, Self::Error> {
+        let _entered = info_span!("TagsUpdate::try_from::<ChangeStreamEvent>").entered();
+        debug!(?value);
+
+        let ns = value
             .ns
             .ok_or_else(|| TracedError::from_msg("missing event `ns` member"))?;
         let collection = ns
             .coll
             .ok_or_else(|| TracedError::from_msg("missing collection"))?;
-        let document_key = event
+        let document_key = value
             .document_key
             .ok_or_else(|| TracedError::from_msg("missing document key"))?;
         let updated_id = document_key
             .get_str("_id")
             .map(String::from)
             .context_during("getting updated document id")?;
-        let update_description = event
+        let update_description = value
             .update_description
             .ok_or_else(|| TracedError::from_msg("missing update description"))?;
         let deserializer_options = DeserializerOptions::builder().human_readable(false).build();
@@ -128,7 +130,7 @@ impl StreamHandler<ChangeStreamEvent> for DatabaseActor {
     fn handle(&mut self, item: ChangeStreamEvent, _ctx: &mut Self::Context) {
         let _entered = info_span!("handle change stream item").entered();
 
-        let tags_update = match TagsUpdate::from_change_stream_event(item) {
+        let tags_update = match TagsUpdate::try_from(item) {
             Ok(tags_update) => tags_update,
             Err(err) => {
                 err.trace_error();
@@ -175,8 +177,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event);
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event);
 
                 assert!(update.is_err());
             }
@@ -201,8 +203,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event);
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event);
 
                 assert!(update.is_err());
             }
@@ -225,8 +227,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event);
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event);
 
                 assert!(update.is_err());
             }
@@ -252,8 +254,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event);
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event);
 
                 assert!(update.is_err());
             }
@@ -271,8 +273,8 @@ mod tests {
                         "_id": "anid"
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event);
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event);
 
                 assert!(update.is_err());
             }
@@ -294,8 +296,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event);
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event);
 
                 assert!(update.is_err());
             }
@@ -321,8 +323,8 @@ mod tests {
                         "removedFields": []
                     }
                 };
-                let event = bson::from_document(document).unwrap();
-                let update = TagsUpdate::from_change_stream_event(event).unwrap();
+                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
+                let update = TagsUpdate::try_from(event).unwrap();
 
                 assert_eq!(update.namespace, "testdb-testcoll");
                 assert_eq!(update.channel_name, "anid");
