@@ -12,7 +12,6 @@ pub(crate) enum TracedError {
 
 pub(crate) trait TracedErrorContext<T> {
     fn context_during(self, during: &str) -> Result<T, TracedError>;
-    fn context_kind(self, kind: &str) -> Result<T, TracedError>;
 }
 
 impl<T, E> TracedErrorContext<T> for Result<T, E>
@@ -22,13 +21,6 @@ where
     fn context_during(self, during: &str) -> Result<T, TracedError> {
         self.map_err(|err| TracedError::During {
             during: String::from(during),
-            err: err.to_string(),
-        })
-    }
-
-    fn context_kind(self, kind: &str) -> Result<T, TracedError> {
-        self.map_err(|err| TracedError::Kind {
-            kind: String::from(kind),
             err: err.to_string(),
         })
     }
