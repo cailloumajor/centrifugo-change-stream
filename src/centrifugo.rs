@@ -9,6 +9,7 @@ use trillium_tokio::TcpConnector;
 use url::Url;
 
 use crate::errors::{TracedError, TracedErrorContext};
+use crate::health::{HealthPing, HealthResult};
 
 type HttpClient = trillium_client::Client<TcpConnector>;
 
@@ -129,6 +130,29 @@ impl Handler<TagsUpdate> for CentrifugoActor {
             }
         }
         .instrument(info_span!("tags update handler"))
+        .boxed()
+    }
+}
+
+impl Handler<HealthPing> for CentrifugoActor {
+    type Result = ResponseFuture<HealthResult>;
+
+    fn handle(&mut self, _msg: HealthPing, ctx: &mut Self::Context) -> Self::Result {
+        let client = self.client.clone();
+        let state = ctx.state();
+        async move {
+            if state != ActorState::Running {
+                return Err(format!("actor is in `{:?}` state", state));
+            }
+
+            if let Err(err) = client.publish("_", ()).await {
+                err.trace_error();
+                return Err("publish error".into());
+            }
+
+            Ok(())
+        }
+        .instrument(info_span!("Centrifugo health handler"))
         .boxed()
     }
 }

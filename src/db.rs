@@ -13,6 +13,7 @@ use tracing::{debug, error, info, info_span, instrument};
 
 use crate::centrifugo::TagsUpdate;
 use crate::errors::{TracedError, TracedErrorContext};
+use crate::health::{HealthPing, HealthResult};
 
 type ChangeStreamEvent = mongodb::change_stream::event::ChangeStreamEvent<Document>;
 
@@ -147,6 +148,19 @@ impl StreamHandler<ChangeStreamEvent> for DatabaseActor {
         let _entered = info_span!("DatabaseActor::finished").entered();
         error!(kind = "fatal", err = "change stream finished");
         System::current().stop();
+    }
+}
+
+impl Handler<HealthPing> for DatabaseActor {
+    type Result = HealthResult;
+
+    fn handle(&mut self, _msg: HealthPing, ctx: &mut Self::Context) -> Self::Result {
+        let state = ctx.state();
+        if state == ActorState::Running {
+            Ok(())
+        } else {
+            Err(format!("actor is in `{:?}` state", state))
+        }
     }
 }
 

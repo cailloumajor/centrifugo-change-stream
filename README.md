@@ -23,6 +23,8 @@ Data from MongoDB change stream will be published to Centrifugo, on the channel 
 
 This service will expose a Centrifugo subscribe proxy endpoint on `/centrifugo/subscribe`. For each subscription, it will send initial data in response `data` field.
 
+To check the health of the connection with Centrifugo, this service will publish `null` data to `_` channel.
+
 ## Data flow
 
 ```mermaid

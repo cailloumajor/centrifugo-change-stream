@@ -6,6 +6,7 @@ use clap_verbosity_flag::{InfoLevel, LogLevel, Verbosity};
 mod centrifugo;
 mod db;
 mod errors;
+mod health;
 
 #[derive(Parser)]
 struct Args {
@@ -47,18 +48,38 @@ fn main() -> Result<()> {
 
     let change_stream = system.block_on(db::create_change_stream(&args.mongodb))?;
 
-    system.block_on(async {
-        let centrifugo_actor = centrifugo::CentrifugoActor {
+    let centrifugo_addr = system.block_on(async {
+        centrifugo::CentrifugoActor {
             client: centrifugo_client,
-        };
-        let centrifugo_recipent = centrifugo_actor.start().recipient();
+        }
+        .start()
+    });
+
+    let database_addr = system.block_on(async {
         db::DatabaseActor::create(|ctx| {
             db::DatabaseActor::add_stream(change_stream, ctx);
             db::DatabaseActor {
-                tags_update_recipient: centrifugo_recipent,
+                tags_update_recipient: centrifugo_addr.clone().recipient(),
             }
         })
     });
+
+    let health_addr = system.block_on(async {
+        let addr = health::HealthService::start_default();
+        addr.send(health::Subscribe::new(
+            "Centrifugo",
+            centrifugo_addr.clone().recipient(),
+        ))
+        .await
+        .context("failed to subscribe Centrifugo actor for health")?;
+        addr.send(health::Subscribe::new(
+            "database",
+            database_addr.clone().recipient(),
+        ))
+        .await
+        .context("failed to subscribe database actor for health")?;
+        Ok::<_, anyhow::Error>(addr)
+    })?;
 
     system.run().context("error running system")
 }
