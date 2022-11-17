@@ -47,7 +47,19 @@ docker compose build
 
 # Initialize MongoDB
 docker compose up -d --quiet-pull mongodb
-docker compose exec mongodb mongosh --norc --quiet --eval "rs.initiate()"
+max_attempts=3
+try_success=
+for i in $(seq 1 $max_attempts); do
+    if docker compose exec mongodb mongosh --norc --quiet --eval "rs.initiate()"; then
+        try_success="true"
+        break
+    fi
+    echo "MongoDB initialization: try #$i failed" >&2
+    [[ $i != "$max_attempts" ]] && sleep 5
+done
+if [ "$try_success" != "true" ]; then
+    die "Failure trying to initialize MongoDB"
+fi
 
 # Start pushing data to MongoDB
 docker compose exec -d mongodb mongosh --norc /usr/src/push-data.mongodb
