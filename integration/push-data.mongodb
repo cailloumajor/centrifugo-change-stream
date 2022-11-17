@@ -1,0 +1,28 @@
+use("testdb");
+
+db.disableFreeMonitoring();
+
+function updateTestCollection() {
+    db.testcoll.updateOne(
+        {
+            _id: "integration-tests"
+        },
+        {
+            $currentDate: {
+                updatedAt: true
+            },
+            $set: {
+                "data.integer": Math.floor(Math.random() * (250 - 150) + 150),
+                "data.float": Math.random() * (42 - 32) + 32,
+            }
+        },
+        {
+            upsert: true
+        }
+    );
+}
+
+while (true) {
+    updateTestCollection();
+    sleep(1000);
+}

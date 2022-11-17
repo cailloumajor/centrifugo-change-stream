@@ -1,0 +1,36 @@
+version: "3.6"
+
+services:
+
+  mongodb:
+    image: mongo:6.0
+    command:
+      - --replSet=test
+    volumes:
+      - ./push-data.mongodb:/usr/src/push-data.mongodb:ro
+
+  centrifugo:
+    image: centrifugo/centrifugo:v4.0
+    command:
+      - centrifugo
+      - --config=/usr/local/etc/centrifugo.toml
+    volumes:
+      - ./centrifugo.toml:/usr/local/etc/centrifugo.toml
+
+  centrifugo-change-stream:
+    build: ..
+    command:
+      - /usr/local/bin/centrifugo-change-stream
+      - --verbose
+    environment:
+      - CENTRIFUGO_API_KEY=f84511bb-62aa-451b-b4d7-2bba964c404e
+      - MONGODB_URI=mongodb://mongodb/?directConnection=true
+      - MONGODB_DATABASE=testdb
+      - MONGODB_COLLECTION=testcoll
+
+  client:
+    build: ./client
+    depends_on:
+      # Do not depend on mongodb service, it makes it recreate on GitHub actions.
+      - centrifugo
+      - centrifugo-change-stream
