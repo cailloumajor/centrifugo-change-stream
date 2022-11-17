@@ -2,7 +2,13 @@ use actix::{Actor, Arbiter, StreamHandler, System};
 use anyhow::{ensure, Context, Result};
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, LogLevel, Verbosity};
-use tracing::{info, info_span, Instrument};
+use futures_util::{stream, stream::AbortHandle, StreamExt};
+use signal_hook::{consts::TERM_SIGNALS, low_level::signal_name};
+use signal_hook_tokio::Signals;
+use tokio::sync::mpsc::{self, Receiver};
+use tracing::{info, info_span, instrument, Instrument};
+use trillium_tokio::tokio_stream::wrappers::ReceiverStream;
+use trillium_tokio::Stopper;
 
 use centrifugo_change_stream::CommonArgs;
 
@@ -42,12 +48,31 @@ where
     }
 }
 
+#[instrument(skip_all)]
+async fn handle_terminate(
+    signals: Signals,
+    receiver: Receiver<&'static str>,
+    abort_handle: AbortHandle,
+    stopper: Stopper,
+) {
+    let signals_stream = signals.map(|signal| signal_name(signal).unwrap_or("unknown"));
+    let receiver_stream = ReceiverStream::new(receiver);
+    let mut events_stream = stream::select(signals_stream, receiver_stream);
+    while let Some(event) = events_stream.next().await {
+        info!(event, msg = "received termination event");
+        abort_handle.abort();
+        stopper.stop();
+    }
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
         .with_max_level(filter_from_verbosity(&args.verbose))
         .init();
+
+    let (term_sender, term_receiver) = mpsc::channel(1);
 
     let system = System::new();
 
@@ -59,8 +84,10 @@ fn main() -> Result<()> {
         .start()
     });
 
+    let (abort_handle, abort_reg) = AbortHandle::new_pair();
     let database_addr = system.block_on(async {
-        let change_stream = db::create_change_stream(&args.mongodb).await?;
+        let change_stream =
+            db::create_change_stream(&args.mongodb, abort_reg, term_sender.clone()).await?;
         Ok::<_, anyhow::Error>(db::DatabaseActor::create(|ctx| {
             db::DatabaseActor::add_stream(change_stream, ctx);
             db::DatabaseActor {
@@ -86,21 +113,36 @@ fn main() -> Result<()> {
         Ok::<_, anyhow::Error>(addr)
     })?;
 
-    let handler = http_api::handler(health_addr.recipient());
+    let trillium_stopper = Stopper::new();
 
-    let sent = Arbiter::current().spawn(
+    let signals = system
+        .block_on(async { Signals::new(TERM_SIGNALS) })
+        .context("error registering termination signals")?;
+    let signals_handle = signals.handle();
+    let sent = Arbiter::current().spawn(handle_terminate(
+        signals,
+        term_receiver,
+        abort_handle,
+        trillium_stopper.clone(),
+    ));
+    ensure!(sent, "error spawning signals handler");
+
+    let handler = http_api::handler(health_addr.recipient());
+    system.block_on(
         async move {
             info!(addr = %args.common.listen_address, msg="start listening");
             trillium_tokio::config()
                 .with_host(&args.common.listen_address.ip().to_string())
                 .with_port(args.common.listen_address.port())
                 .without_signals()
+                .with_stopper(trillium_stopper)
                 .run_async(handler)
                 .await;
         }
         .instrument(info_span!("http_server_task")),
     );
-    ensure!(sent, "http server spawning error");
 
-    system.run().context("error running system")
+    signals_handle.close();
+
+    Ok(())
 }

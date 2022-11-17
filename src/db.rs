@@ -4,11 +4,13 @@ use std::time::Duration;
 use actix::prelude::*;
 use anyhow::Context as _;
 use clap::Args;
+use futures_util::stream::{AbortRegistration, Abortable};
 use futures_util::{future, StreamExt, TryStreamExt};
 use mongodb::bson::{self, doc, Bson, DateTime, DeserializerOptions, Document};
 use mongodb::options::ClientOptions;
 use mongodb::Client;
 use serde::Deserialize;
+use tokio::sync::mpsc::Sender;
 use tracing::{debug, error, info, info_span, instrument};
 
 use crate::centrifugo::TagsUpdate;
@@ -47,6 +49,8 @@ struct UpdatedFields {
 #[instrument(skip_all)]
 pub(crate) async fn create_change_stream(
     config: &Config,
+    abort_reg: AbortRegistration,
+    term_sender: Sender<&'static str>,
 ) -> anyhow::Result<impl Stream<Item = ChangeStreamEvent>> {
     let mut options = ClientOptions::parse(&config.mongodb_uri)
         .await
@@ -60,16 +64,24 @@ pub(crate) async fn create_change_stream(
         .collection::<Document>(&config.mongodb_collection)
         .watch(pipeline, None)
         .await
-        .context("error starting change stream")?
-        .inspect_err(|err| {
+        .context("error starting change stream")?;
+    let returned_stream = Abortable::new(change_stream, abort_reg)
+        .inspect_err(move |err| {
             let _entered = info_span!("change stream error inspect").entered();
-            error!(kind="change stream error", %err);
+            error!(kind = "change stream error", %err);
+            let term_sender = term_sender.clone();
+            Arbiter::current().spawn(async move {
+                term_sender
+                    .send("change stream error")
+                    .await
+                    .expect("termination channel sending error");
+            });
         })
         .take_while(|item| future::ready(item.is_ok()))
         .map(|item| item.unwrap());
 
     info!(status = "success");
-    Ok(change_stream)
+    Ok(returned_stream)
 }
 
 impl TryFrom<ChangeStreamEvent> for TagsUpdate {
@@ -146,8 +158,7 @@ impl StreamHandler<ChangeStreamEvent> for DatabaseActor {
 
     fn finished(&mut self, _ctx: &mut Self::Context) {
         let _entered = info_span!("DatabaseActor::finished").entered();
-        error!(kind = "fatal", err = "change stream finished");
-        System::current().stop();
+        info!(msg = "change stream finished");
     }
 }
 
