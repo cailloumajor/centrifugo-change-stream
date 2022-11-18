@@ -5,18 +5,19 @@ use actix::prelude::*;
 use anyhow::Context as _;
 use clap::Args;
 use futures_util::stream::{AbortRegistration, Abortable};
-use futures_util::{future, StreamExt, TryStreamExt};
+use futures_util::{future, FutureExt, StreamExt, TryStreamExt};
 use mongodb::bson::{self, doc, Bson, DateTime, DeserializerOptions, Document};
 use mongodb::options::ClientOptions;
-use mongodb::Client;
+use mongodb::{Client, Collection};
 use serde::Deserialize;
 use tokio::sync::mpsc::Sender;
-use tracing::{debug, error, info, info_span, instrument};
+use tracing::{debug, error, info, info_span, instrument, Instrument};
 
 use crate::centrifugo::TagsUpdate;
 use crate::errors::{TracedError, TracedErrorContext};
 use crate::health::{HealthPing, HealthResult};
 
+type GenericCollection = Collection<Document>;
 type ChangeStreamEvent = mongodb::change_stream::event::ChangeStreamEvent<Document>;
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");
@@ -47,21 +48,29 @@ struct UpdatedFields {
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn create_change_stream(
-    config: &Config,
-    abort_reg: AbortRegistration,
-    term_sender: Sender<&'static str>,
-) -> anyhow::Result<impl Stream<Item = ChangeStreamEvent>> {
+pub(crate) async fn create_collection(config: &Config) -> anyhow::Result<GenericCollection> {
     let mut options = ClientOptions::parse(&config.mongodb_uri)
         .await
         .context("error parsing connection string URI")?;
     options.app_name = String::from(APP_NAME).into();
     options.server_selection_timeout = Duration::from_secs(2).into();
     let client = Client::with_options(options).context("error creating the client")?;
-    let pipeline = [doc! { "$match": { "operationType": "update" } }];
-    let change_stream = client
+    let collection = client
         .database(&config.mongodb_database)
-        .collection::<Document>(&config.mongodb_collection)
+        .collection(&config.mongodb_collection);
+
+    info!(status = "success");
+    Ok(collection)
+}
+
+#[instrument(skip_all)]
+pub(crate) async fn create_change_stream(
+    collection: &GenericCollection,
+    abort_reg: AbortRegistration,
+    term_sender: Sender<&'static str>,
+) -> anyhow::Result<impl Stream<Item = ChangeStreamEvent>> {
+    let pipeline = [doc! { "$match": { "operationType": "update" } }];
+    let change_stream = collection
         .watch(pipeline, None)
         .await
         .context("error starting change stream")?;
@@ -132,6 +141,7 @@ impl TryFrom<ChangeStreamEvent> for TagsUpdate {
 }
 
 pub(crate) struct DatabaseActor {
+    pub(crate) collection: GenericCollection,
     pub(crate) tags_update_recipient: Recipient<TagsUpdate>,
 }
 
@@ -159,6 +169,66 @@ impl StreamHandler<ChangeStreamEvent> for DatabaseActor {
     fn finished(&mut self, _ctx: &mut Self::Context) {
         let _entered = info_span!("DatabaseActor::finished").entered();
         info!(msg = "change stream finished");
+    }
+}
+
+type InnerData = serde_json::Map<String, serde_json::Value>;
+
+#[derive(Deserialize)]
+struct DataDocument {
+    data: InnerData,
+}
+
+#[derive(Clone)]
+pub(crate) enum CurrentDataError {
+    BadNamespace,
+    MongoDB,
+}
+
+pub(crate) type CurrentDataResponse = Result<Option<InnerData>, CurrentDataError>;
+
+#[derive(Debug, Message)]
+#[rtype(result = "CurrentDataResponse")]
+pub(crate) struct CurrentDataRequest {
+    dotted_namespace: String,
+    id: String,
+}
+
+impl CurrentDataRequest {
+    pub(crate) fn new(dotted_namespace: String, id: String) -> Self {
+        Self {
+            dotted_namespace,
+            id,
+        }
+    }
+}
+
+impl Handler<CurrentDataRequest> for DatabaseActor {
+    type Result = ResponseFuture<CurrentDataResponse>;
+
+    fn handle(&mut self, msg: CurrentDataRequest, _ctx: &mut Self::Context) -> Self::Result {
+        let collection = self.collection.clone_with_type::<DataDocument>();
+
+        async move {
+            debug!(?msg);
+
+            if msg.dotted_namespace != collection.namespace().to_string() {
+                error!(kind = "bad namespace", got = msg.dotted_namespace);
+                return Err(CurrentDataError::BadNamespace);
+            }
+
+            let filter = doc! { "_id": msg.id };
+            let document = collection.find_one(filter, None).await.map_err(|err| {
+                error!(kind = "finding document", %err);
+                CurrentDataError::MongoDB
+            })?;
+
+            let data = document.map(|data_document| data_document.data);
+
+            Ok(data)
+        }
+        .instrument(info_span!("current_data_handler"))
+        .boxed()
     }
 }
 

@@ -2,8 +2,12 @@ token_hmac_secret_key = "08ac56c5-cce8-4d1f-8413-a5b986ecce5b"
 api_key = "f84511bb-62aa-451b-b4d7-2bba964c404e"
 allowed_origins = [  ]
 allow_anonymous_connect_without_token = true
+granular_proxy_mode = true
+
+[[proxies]]
+name = "subscribe"
+endpoint = "http://centrifugo-change-stream:8080/centrifugo/subscribe"
 
 [[namespaces]]
 name = "testdb-testcoll"
-allow_subscribe_for_client = true
-allow_subscribe_for_anonymous = true
+subscribe_proxy_name = "subscribe"

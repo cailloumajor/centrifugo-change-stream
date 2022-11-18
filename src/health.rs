@@ -57,7 +57,7 @@ impl Handler<HealthQuery> for HealthService {
             for (name, recipient) in named_recipients {
                 let pong = recipient.send(HealthPing).await;
                 if let Err(err) = pong {
-                    error!(kind="fatal", %err);
+                    error!(kind = "fatal", %err);
                     System::current().stop();
                 }
                 if let Err(err) = pong.unwrap() {
