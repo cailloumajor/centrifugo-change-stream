@@ -5,6 +5,8 @@ import { format } from "node:util";
 import { Centrifuge } from "centrifuge";
 import WebSocket from "ws";
 
+const inRange = (n, min, max) => n >= min && n <= max;
+
 const publications = [];
 
 const centrifuge = new Centrifuge("ws://centrifugo:8000/connection/websocket", {
@@ -12,7 +14,41 @@ const centrifuge = new Centrifuge("ws://centrifugo:8000/connection/websocket", {
     websocket: WebSocket,
 });
 
+const noDataSub = centrifuge.newSubscription("testdb-testcoll:nodata");
+
+noDataSub.on("subscribed", ({ channel, data }) => {
+    console.log(
+        "got subscribed event for `%s` channel, with data: %s",
+        channel,
+        data
+    );
+    if (Object.keys(data).length !== 0 || data.constructor !== Object) {
+        throw new Error("no-data channel: expected empty data object");
+    }
+});
+
+noDataSub.on("publication", () => {
+    throw new Error("unexpected publication on no-data channel");
+});
+
+noDataSub.subscribe();
+
 const sub = centrifuge.newSubscription("testdb-testcoll:integration-tests");
+
+sub.on("subscribed", ({ channel, data }) => {
+    console.log(
+        "got subscribed event for `%s` channel, with data: %s",
+        channel,
+        data
+    );
+    if (!inRange(data.integer, 150, 250) || !inRange(data.float, 32.0, 42.0)) {
+        const errorMessage = format(
+            "unexpected data from subscribe proxy: %s",
+            data
+        );
+        throw new Error(errorMessage);
+    }
+});
 
 sub.on("publication", ({ data }) => {
     console.log("got publication with data: %s", data);
@@ -38,8 +74,6 @@ await new Promise((resolve) => {
 
 centrifuge.disconnect();
 clearTimeout(publicationsTimeout);
-
-const inRange = (n, min, max) => n >= min && n <= max;
 
 for (const data of publications) {
     if (!inRange(data.integer, 150, 250) || !inRange(data.float, 32.0, 42.0)) {

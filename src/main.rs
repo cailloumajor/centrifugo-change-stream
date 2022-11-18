@@ -86,11 +86,13 @@ fn main() -> Result<()> {
 
     let (abort_handle, abort_reg) = AbortHandle::new_pair();
     let database_addr = system.block_on(async {
+        let collection = db::create_collection(&args.mongodb).await?;
         let change_stream =
-            db::create_change_stream(&args.mongodb, abort_reg, term_sender.clone()).await?;
+            db::create_change_stream(&collection, abort_reg, term_sender.clone()).await?;
         Ok::<_, anyhow::Error>(db::DatabaseActor::create(|ctx| {
             db::DatabaseActor::add_stream(change_stream, ctx);
             db::DatabaseActor {
+                collection,
                 tags_update_recipient: centrifugo_addr.clone().recipient(),
             }
         }))
@@ -127,7 +129,7 @@ fn main() -> Result<()> {
     ));
     ensure!(sent, "error spawning signals handler");
 
-    let handler = http_api::handler(health_addr.recipient());
+    let handler = http_api::handler(health_addr.recipient(), database_addr.recipient());
     system.block_on(
         async move {
             info!(addr = %args.common.listen_address, msg="start listening");

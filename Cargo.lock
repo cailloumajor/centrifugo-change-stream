@@ -213,7 +213,9 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trillium",
+ "trillium-api",
  "trillium-client",
+ "trillium-http",
  "trillium-router",
  "trillium-testing",
  "trillium-tokio",
@@ -1765,6 +1767,18 @@ dependencies = [
  "futures-lite",
  "log",
  "trillium-http",
+]
+
+[[package]]
+name = "trillium-api"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82b43854c11d5cb8de23e7ca11d738d1a7d76a1ab29a569852204f3963429221"
+dependencies = [
+ "mime",
+ "serde",
+ "serde_json",
+ "trillium",
 ]
 
 [[package]]
