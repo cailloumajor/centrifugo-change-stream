@@ -9,5 +9,5 @@ name = "subscribe"
 endpoint = "http://centrifugo-change-stream:8080/centrifugo/subscribe"
 
 [[namespaces]]
-name = "testdb-testcoll"
+name = "testdb.testcoll"
 subscribe_proxy_name = "subscribe"

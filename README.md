@@ -16,10 +16,11 @@ It will also query MongoDB for data to send it to the client (as initial data) w
 
 Data from MongoDB change stream will be published to Centrifugo, on the channel with following characteristics:
 
-- [namespace][centrifugo-namespace]: dash-separated MongoDB database and collection;
+- [namespace][centrifugo-namespace]: dot-separated MongoDB database and collection (complies with [MongoDB namespace][mongodb-namespace]);
 - channel name: primary key of the document (`_id` field).
 
 [centrifugo-namespace]: https://centrifugal.dev/docs/server/channels#channel-namespaces
+[mongodb-namespace]: https://www.mongodb.com/docs/manual/reference/glossary/#std-term-namespace
 
 This service will expose a Centrifugo subscribe proxy endpoint on `/centrifugo/subscribe`. For each subscription, it will send initial data in response `data` field.
 
