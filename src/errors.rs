@@ -7,7 +7,6 @@ pub(crate) enum TracedError {
     Centrifugo { code: u16, message: String },
     During { during: String, err: String },
     Kind { kind: String, err: String },
-    Msg(String),
 }
 
 pub(crate) trait TracedErrorContext<T> {
@@ -34,10 +33,6 @@ impl TracedError {
         }
     }
 
-    pub(crate) fn from_msg(msg: &str) -> Self {
-        Self::Msg(String::from(msg))
-    }
-
     pub(crate) fn from_centrifugo_error(code: u16, message: &str) -> Self {
         Self::Centrifugo {
             code,
@@ -55,9 +50,6 @@ impl TracedError {
             }
             Self::Kind { kind, err } => {
                 error!(kind, err);
-            }
-            Self::Msg(msg) => {
-                error!(msg);
             }
         }
     }

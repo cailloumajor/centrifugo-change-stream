@@ -6,19 +6,17 @@ use anyhow::Context as _;
 use clap::Args;
 use futures_util::stream::{AbortRegistration, Abortable};
 use futures_util::{future, FutureExt, StreamExt, TryStreamExt};
-use mongodb::bson::{self, doc, Bson, DateTime, DeserializerOptions, Document};
+use mongodb::bson::{doc, Bson, Document};
 use mongodb::options::ClientOptions;
-use mongodb::{Client, Collection};
+use mongodb::{Client, Collection, Namespace};
 use serde::Deserialize;
 use tokio::sync::mpsc::Sender;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
 
 use crate::centrifugo::TagsUpdate;
-use crate::errors::{TracedError, TracedErrorContext};
 use crate::health::{HealthPing, HealthResult};
 
 type GenericCollection = Collection<Document>;
-type ChangeStreamEvent = mongodb::change_stream::event::ChangeStreamEvent<Document>;
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");
 
@@ -38,13 +36,33 @@ pub(crate) struct Config {
     mongodb_collection: String,
 }
 
+/// Custom change stream event, specialized for updates.
 #[derive(Debug, Deserialize)]
-struct UpdatedFields {
-    #[serde(rename = "updatedAt")]
-    _updated_at: DateTime,
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateEvent {
+    #[serde(with = "UpdateNamespace")]
+    ns: Namespace,
+    document_key: DocumentKey,
+    update_description: UpdateDescription,
+}
 
-    #[serde(flatten)]
-    data: HashMap<String, Bson>,
+#[derive(Deserialize)]
+#[serde(remote = "Namespace")]
+struct UpdateNamespace {
+    db: String,
+    coll: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DocumentKey {
+    #[serde(rename = "_id")]
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateDescription {
+    updated_fields: HashMap<String, Bson>,
 }
 
 #[instrument(skip_all)]
@@ -68,16 +86,17 @@ pub(crate) async fn create_change_stream(
     collection: &GenericCollection,
     abort_reg: AbortRegistration,
     term_sender: Sender<&'static str>,
-) -> anyhow::Result<impl Stream<Item = ChangeStreamEvent>> {
+) -> anyhow::Result<impl Stream<Item = UpdateEvent>> {
     let pipeline = [doc! { "$match": { "operationType": "update" } }];
     let change_stream = collection
         .watch(pipeline, None)
         .await
-        .context("error starting change stream")?;
+        .context("error starting change stream")?
+        .with_type::<UpdateEvent>();
     let returned_stream = Abortable::new(change_stream, abort_reg)
         .inspect_err(move |err| {
-            let _entered = info_span!("change stream error inspect").entered();
-            error!(kind = "change stream error", %err);
+            let _entered = info_span!("change_stream_error_inspect").entered();
+            error!(?err);
             let term_sender = term_sender.clone();
             Arbiter::current().spawn(async move {
                 term_sender
@@ -93,53 +112,6 @@ pub(crate) async fn create_change_stream(
     Ok(returned_stream)
 }
 
-impl TryFrom<ChangeStreamEvent> for TagsUpdate {
-    type Error = TracedError;
-
-    fn try_from(value: ChangeStreamEvent) -> Result<Self, Self::Error> {
-        let _entered = info_span!("TagsUpdate::try_from::<ChangeStreamEvent>").entered();
-        debug!(?value);
-
-        let ns = value
-            .ns
-            .ok_or_else(|| TracedError::from_msg("missing event `ns` member"))?;
-        let collection = ns
-            .coll
-            .ok_or_else(|| TracedError::from_msg("missing collection"))?;
-        let document_key = value
-            .document_key
-            .ok_or_else(|| TracedError::from_msg("missing document key"))?;
-        let updated_id = document_key
-            .get_str("_id")
-            .map(String::from)
-            .context_during("getting updated document id")?;
-        let update_description = value
-            .update_description
-            .ok_or_else(|| TracedError::from_msg("missing update description"))?;
-        let deserializer_options = DeserializerOptions::builder().human_readable(false).build();
-        let updated_fields: UpdatedFields = bson::from_document_with_options(
-            update_description.updated_fields,
-            deserializer_options,
-        )
-        .context_during("deserializing updated fields")?;
-        debug!(?updated_fields);
-        let tags_update_data = updated_fields
-            .data
-            .into_iter()
-            .filter_map(|(k, v)| {
-                k.strip_prefix("data.")
-                    .map(|data_key| (data_key.to_owned(), v.into_relaxed_extjson()))
-            })
-            .collect();
-
-        Ok(Self {
-            namespace: ns.db + "-" + collection.as_str(),
-            channel_name: updated_id,
-            data: tags_update_data,
-        })
-    }
-}
-
 pub(crate) struct DatabaseActor {
     pub(crate) collection: GenericCollection,
     pub(crate) tags_update_recipient: Recipient<TagsUpdate>,
@@ -149,16 +121,27 @@ impl Actor for DatabaseActor {
     type Context = Context<Self>;
 }
 
-impl StreamHandler<ChangeStreamEvent> for DatabaseActor {
-    fn handle(&mut self, item: ChangeStreamEvent, _ctx: &mut Self::Context) {
+impl StreamHandler<UpdateEvent> for DatabaseActor {
+    fn handle(&mut self, item: UpdateEvent, _ctx: &mut Self::Context) {
         let _entered = info_span!("handle change stream item").entered();
+        debug!(?item);
 
-        let tags_update = match TagsUpdate::try_from(item) {
-            Ok(tags_update) => tags_update,
-            Err(err) => {
-                err.trace_error();
-                return;
-            }
+        let namespace = item.ns.to_string();
+        let channel_name = item.document_key.id;
+        let data = item
+            .update_description
+            .updated_fields
+            .into_iter()
+            .filter_map(|(k, v)| {
+                k.strip_prefix("data.")
+                    .map(|data_key| (data_key.to_owned(), v.into_relaxed_extjson()))
+            })
+            .collect();
+
+        let tags_update = TagsUpdate {
+            namespace,
+            channel_name,
+            data,
         };
 
         if let Err(err) = self.tags_update_recipient.try_send(tags_update) {
@@ -190,16 +173,13 @@ pub(crate) type CurrentDataResponse = Result<Option<InnerData>, CurrentDataError
 #[derive(Debug, Message)]
 #[rtype(result = "CurrentDataResponse")]
 pub(crate) struct CurrentDataRequest {
-    dotted_namespace: String,
+    namespace: String,
     id: String,
 }
 
 impl CurrentDataRequest {
-    pub(crate) fn new(dotted_namespace: String, id: String) -> Self {
-        Self {
-            dotted_namespace,
-            id,
-        }
+    pub(crate) fn new(namespace: String, id: String) -> Self {
+        Self { namespace, id }
     }
 }
 
@@ -212,8 +192,8 @@ impl Handler<CurrentDataRequest> for DatabaseActor {
         async move {
             debug!(?msg);
 
-            if msg.dotted_namespace != collection.namespace().to_string() {
-                error!(kind = "bad namespace", got = msg.dotted_namespace);
+            if msg.namespace != collection.namespace().to_string() {
+                error!(kind = "bad namespace", got = msg.namespace);
                 return Err(CurrentDataError::BadNamespace);
             }
 
@@ -241,191 +221,6 @@ impl Handler<HealthPing> for DatabaseActor {
             Ok(())
         } else {
             Err(format!("actor is in `{:?}` state", state))
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod tags_update {
-        use super::*;
-
-        mod from_change_stream_event {
-            use super::*;
-
-            #[test]
-            fn missing_ns() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "documentKey": {
-                        "_id": "anid"
-                    },
-                    "updateDescription": {
-                        "updatedFields": {
-                            "updatedAt": DateTime::from_millis(0),
-                            "data.first": 9,
-                            "data.second": "other"
-                        },
-                        "removedFields": []
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event);
-
-                assert!(update.is_err());
-            }
-
-            #[test]
-            fn missing_coll() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "ns": {
-                        "db": "testdb"
-                    },
-                    "documentKey": {
-                        "_id": "anid"
-                    },
-                    "updateDescription": {
-                        "updatedFields": {
-                            "updatedAt": DateTime::from_millis(0),
-                            "data.first": 9,
-                            "data.second": "other"
-                        },
-                        "removedFields": []
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event);
-
-                assert!(update.is_err());
-            }
-
-            #[test]
-            fn missing_document_key() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "ns": {
-                        "db": "testdb",
-                        "coll": "testcoll"
-                    },
-                    "updateDescription": {
-                        "updatedFields": {
-                            "updatedAt": DateTime::from_millis(0),
-                            "data.first": 9,
-                            "data.second": "other"
-                        },
-                        "removedFields": []
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event);
-
-                assert!(update.is_err());
-            }
-
-            #[test]
-            fn wrong_updated_document_id_type() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "ns": {
-                        "db": "testdb",
-                        "coll": "testcoll"
-                    },
-                    "documentKey": {
-                        "_id": 42
-                    },
-                    "updateDescription": {
-                        "updatedFields": {
-                            "updatedAt": DateTime::from_millis(0),
-                            "data.first": 9,
-                            "data.second": "other"
-                        },
-                        "removedFields": []
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event);
-
-                assert!(update.is_err());
-            }
-
-            #[test]
-            fn missing_update_description() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "ns": {
-                        "db": "testdb",
-                        "coll": "testcoll"
-                    },
-                    "documentKey": {
-                        "_id": "anid"
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event);
-
-                assert!(update.is_err());
-            }
-
-            #[test]
-            fn error_deserializing_updated_fields() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "ns": {
-                        "db": "testdb",
-                        "coll": "testcoll"
-                    },
-                    "documentKey": {
-                        "_id": "anid"
-                    },
-                    "updateDescription": {
-                        "updatedFields": {},
-                        "removedFields": []
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event);
-
-                assert!(update.is_err());
-            }
-
-            #[test]
-            fn success() {
-                let document = doc! {
-                    "_id": Bson::Null,
-                    "operationType": "update",
-                    "ns": {
-                        "db": "testdb",
-                        "coll": "testcoll"
-                    },
-                    "documentKey": {
-                        "_id": "anid"
-                    },
-                    "updateDescription": {
-                        "updatedFields": {
-                            "updatedAt": DateTime::from_millis(0),
-                            "data.first": 9,
-                            "data.second": "other"
-                        },
-                        "removedFields": []
-                    }
-                };
-                let event: ChangeStreamEvent = bson::from_document(document).unwrap();
-                let update = TagsUpdate::try_from(event).unwrap();
-
-                assert_eq!(update.namespace, "testdb-testcoll");
-                assert_eq!(update.channel_name, "anid");
-                assert_eq!(update.data["first"], 9);
-                assert_eq!(update.data["second"], "other");
-            }
         }
     }
 }

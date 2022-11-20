@@ -316,7 +316,7 @@ mod tests {
         fn unsupported_protocol() {
             let resp = post("/")
                 .with_request_body(
-                    r#"{"protocol":"unsupported","encoding":"json","channel":"db-coll:chan"}"#,
+                    r#"{"protocol":"unsupported","encoding":"json","channel":"ns:chan"}"#,
                 )
                 .with_request_header("content-type", "application/json")
                 .on(&api(centrifugo_subscribe_handler));
@@ -333,7 +333,7 @@ mod tests {
         fn unsupported_encoding() {
             let resp = post("/")
                 .with_request_body(
-                    r#"{"protocol":"json","encoding":"unsupported","channel":"db-coll:chan"}"#,
+                    r#"{"protocol":"json","encoding":"unsupported","channel":"ns:chan"}"#,
                 )
                 .with_request_header("content-type", "application/json")
                 .on(&api(centrifugo_subscribe_handler));
@@ -368,7 +368,7 @@ mod tests {
                 must_stop: true,
             });
             let handler = test_handler(addr.recipient()).await;
-            let body = r#"{"protocol":"json","encoding":"json","channel":"db-coll:chan"}"#;
+            let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
 
             let resp = handle(Method::Get, "/", body, &handler).await;
 
@@ -382,7 +382,7 @@ mod tests {
                 must_stop: false,
             });
             let handler = test_handler(addr.recipient()).await;
-            let body = r#"{"protocol":"json","encoding":"json","channel":"db-coll:chan"}"#;
+            let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
 
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 
@@ -401,7 +401,7 @@ mod tests {
                 must_stop: false,
             });
             let handler = test_handler(addr.recipient()).await;
-            let body = r#"{"protocol":"json","encoding":"json","channel":"db-coll:chan"}"#;
+            let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
 
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 
@@ -419,7 +419,7 @@ mod tests {
                 must_stop: false,
             });
             let handler = test_handler(addr.recipient()).await;
-            let body = r#"{"protocol":"json","encoding":"json","channel":"db-coll:chan"}"#;
+            let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
 
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 

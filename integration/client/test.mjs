@@ -7,6 +7,7 @@ import WebSocket from "ws";
 
 const inRange = (n, min, max) => n >= min && n <= max;
 
+let noDataSubscribed = false;
 const publications = [];
 
 const centrifuge = new Centrifuge("ws://centrifugo:8000/connection/websocket", {
@@ -14,7 +15,7 @@ const centrifuge = new Centrifuge("ws://centrifugo:8000/connection/websocket", {
     websocket: WebSocket,
 });
 
-const noDataSub = centrifuge.newSubscription("testdb-testcoll:nodata");
+const noDataSub = centrifuge.newSubscription("testdb.testcoll:nodata");
 
 noDataSub.on("subscribed", ({ channel, data }) => {
     console.log(
@@ -22,6 +23,7 @@ noDataSub.on("subscribed", ({ channel, data }) => {
         channel,
         data
     );
+    noDataSubscribed = true;
     if (Object.keys(data).length !== 0 || data.constructor !== Object) {
         throw new Error("no-data channel: expected empty data object");
     }
@@ -33,7 +35,7 @@ noDataSub.on("publication", () => {
 
 noDataSub.subscribe();
 
-const sub = centrifuge.newSubscription("testdb-testcoll:integration-tests");
+const sub = centrifuge.newSubscription("testdb.testcoll:integration-tests");
 
 sub.on("subscribed", ({ channel, data }) => {
     console.log(
@@ -74,6 +76,10 @@ await new Promise((resolve) => {
 
 centrifuge.disconnect();
 clearTimeout(publicationsTimeout);
+
+if (!noDataSubscribed) {
+    throw new Error("no-data channel has not been subscribed");
+}
 
 for (const data of publications) {
     if (!inRange(data.integer, 150, 250) || !inRange(data.float, 32.0, 42.0)) {
