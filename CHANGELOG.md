@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v1.0.0...v2.0.0) (2022-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* switch to dotted Centrifugo namespace
+
+### Features
+
+* switch to dotted Centrifugo namespace ([a56c7f4](https://github.com/cailloumajor/centrifugo-change-stream/commit/a56c7f4f8133ca9f909a7778912e787018b5d822))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate serde_json to 1.0.88 ([6f68dcf](https://github.com/cailloumajor/centrifugo-change-stream/commit/6f68dcf1101bd5d1eeebc3241f91d841618ea526))
+* **deps:** update rust crate tokio to 1.22.0 ([958ec11](https://github.com/cailloumajor/centrifugo-change-stream/commit/958ec11be77a06d650db9c092a77ad82e0186b8c))
+
 ## [1.0.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v0.1.0...v1.0.0) (2022-11-18)
 
 
