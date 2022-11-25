@@ -7,6 +7,7 @@ use signal_hook::{consts::TERM_SIGNALS, low_level::signal_name};
 use signal_hook_tokio::Signals;
 use tokio::sync::mpsc::{self, Receiver};
 use tracing::{info, info_span, instrument, Instrument};
+use tracing_log::LogTracer;
 use trillium_tokio::tokio_stream::wrappers::ReceiverStream;
 use trillium_tokio::Stopper;
 
@@ -37,7 +38,7 @@ fn filter_from_verbosity<T>(verbosity: &Verbosity<T>) -> tracing::level_filters:
 where
     T: LogLevel,
 {
-    use log::LevelFilter;
+    use tracing_log::log::LevelFilter;
     match verbosity.log_level_filter() {
         LevelFilter::Off => tracing::level_filters::LevelFilter::OFF,
         LevelFilter::Error => tracing::level_filters::LevelFilter::ERROR,
@@ -71,6 +72,8 @@ fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(filter_from_verbosity(&args.verbose))
         .init();
+
+    LogTracer::init_with_filter(args.verbose.log_level_filter())?;
 
     let (term_sender, term_receiver) = mpsc::channel(1);
 
