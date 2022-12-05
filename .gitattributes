@@ -1,2 +1,2 @@
 .devcontainer/** linguist-vendored
-*.mongodb        linguist-language=JavaScript
+**/*.mongodb     linguist-language=JavaScript
