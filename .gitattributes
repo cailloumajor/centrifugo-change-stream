@@ -1,1 +1,2 @@
 .devcontainer/** linguist-vendored
+*.mongodb        linguist-language=JavaScript
