@@ -67,7 +67,17 @@ const publicationsTimeout = setTimeout(() => {
 
 await new Promise((resolve) => {
     const interval = setInterval(() => {
-        if (publications.length >= 5) {
+        let integerCount = 0;
+        let floatCount = 0;
+        publications.forEach((pub) => {
+            if ("integer" in pub) {
+                integerCount += 1;
+            }
+            if ("float" in pub) {
+                floatCount += 1;
+            }
+        });
+        if (integerCount >= 3 && floatCount >= 3) {
             clearInterval(interval);
             resolve();
         }
@@ -82,7 +92,10 @@ if (!noDataSubscribed) {
 }
 
 for (const data of publications) {
-    if (!inRange(data.integer, 150, 250) || !inRange(data.float, 32.0, 42.0)) {
+    if (
+        (data.integer && !inRange(data.integer, 150, 250)) ||
+        (data.float && !inRange(data.float, 32.0, 42.0))
+    ) {
         const errorMessage = format("test failed for element: %s", data);
         throw new Error(errorMessage);
     }
