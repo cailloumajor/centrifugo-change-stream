@@ -18,6 +18,7 @@ mod db;
 mod errors;
 mod health;
 mod http_api;
+mod model;
 
 #[derive(Parser)]
 struct Args {

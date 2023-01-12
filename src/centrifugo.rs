@@ -2,7 +2,7 @@ use actix::prelude::*;
 use clap::Args;
 use futures_util::FutureExt;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::json;
 use tracing::{debug, info_span, instrument, Instrument};
 use trillium_client::Conn;
 use trillium_tokio::TcpConnector;
@@ -10,6 +10,7 @@ use url::Url;
 
 use crate::errors::{TracedError, TracedErrorContext};
 use crate::health::{HealthPing, HealthResult};
+use crate::model::TagsUpdateData;
 
 type HttpClient = trillium_client::Client<TcpConnector>;
 
@@ -105,7 +106,7 @@ impl Client {
 pub(crate) struct TagsUpdate {
     pub(crate) namespace: String,
     pub(crate) channel_name: String,
-    pub(crate) data: Map<String, Value>,
+    pub(crate) data: TagsUpdateData,
 }
 
 pub(crate) struct CentrifugoActor {
