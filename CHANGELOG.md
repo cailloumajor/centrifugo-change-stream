@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.1.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v2.0.2...v2.1.0) (2023-01-13)
+
+
+### Features
+
+* implement source timestamps ([4469c5e](https://github.com/cailloumajor/centrifugo-change-stream/commit/4469c5e50632a364f5dca236e078004e79001ff2))
+
+
+### Bug Fixes
+
+* **deps:** update dependency ws to 8.12 ([d20e686](https://github.com/cailloumajor/centrifugo-change-stream/commit/d20e6869adeb82bd3ba8662a3c9b90b0c1bf3cdf))
+* **deps:** update rust crate anyhow to 1.0.68 ([00d7220](https://github.com/cailloumajor/centrifugo-change-stream/commit/00d7220aa32bf532b80c1e08659a222441b5c438))
+* **deps:** update rust crate clap to 4.0.32 ([c43e0dd](https://github.com/cailloumajor/centrifugo-change-stream/commit/c43e0dd52c015fe50dcd1456972af155ab850172))
+* **deps:** update rust crate serde to 1.0.152 ([185a9a4](https://github.com/cailloumajor/centrifugo-change-stream/commit/185a9a4a7218c8577028c48a03eb51fcf87a9c51))
+* **deps:** update rust crate serde_json to 1.0.91 ([43579fd](https://github.com/cailloumajor/centrifugo-change-stream/commit/43579fdae40ff4de9d647e209dcb34e00f00966b))
+* **deps:** update rust crate tokio to 1.24.1 ([08b3669](https://github.com/cailloumajor/centrifugo-change-stream/commit/08b366928c0a39fae01a7700c4785df5f273e02d))
+* **deps:** update rust docker tag to v1.66.1 ([8e0fef8](https://github.com/cailloumajor/centrifugo-change-stream/commit/8e0fef80fb7ac5cbebe96bca77b78bc68eb8ed65))
+
 ## [2.0.2](https://github.com/cailloumajor/centrifugo-change-stream/compare/v2.0.1...v2.0.2) (2022-12-16)
 
 
