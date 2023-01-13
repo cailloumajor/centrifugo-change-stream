@@ -293,6 +293,10 @@ mod tests {
     }
 
     mod centrifugo_subscribe_handler {
+        use mongodb::bson::{Bson, DateTime};
+
+        use crate::model::TagsUpdateData;
+
         use super::*;
 
         async fn test_handler(
@@ -412,10 +416,13 @@ mod tests {
 
         #[actix::test]
         async fn success_with_data() {
-            let data_collection = serde_json::from_str(r#"{"first":9,"second":"other"}"#)
-                .expect("deserialization error");
+            let mut tags_update_data = TagsUpdateData::with_capacity(2);
+            tags_update_data.insert_value("first".into(), Bson::Int32(9));
+            tags_update_data.insert_value("second".into(), Bson::String("other".into()));
+            tags_update_data.insert_ts("one".to_string(), DateTime::from_millis(1673598600000));
+            tags_update_data.insert_ts("two".to_string(), DateTime::from_millis(471411000000));
             let addr = Actor::start(TestCurrentDataActor {
-                outcome: Ok(Some(data_collection)),
+                outcome: Ok(Some(tags_update_data)),
                 must_stop: false,
             });
             let handler = test_handler(addr.recipient()).await;
@@ -424,10 +431,13 @@ mod tests {
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 
             assert_status!(resp, 200);
-            assert_eq!(
-                body_string(&mut resp).await,
-                r#"{"result":{"data":{"first":9,"second":"other"}}}"#
-            );
+            let body = body_string(&mut resp).await;
+            assert!(body.starts_with(r#"{"result":{"data":{"#));
+            assert!(body.contains(r#""first":9"#));
+            assert!(body.contains(r#""second":"other""#));
+            assert!(body.contains(r#""ts":{"#));
+            assert!(body.contains(r#""one":"2023-01-13T08:30:00Z""#));
+            assert!(body.contains(r#""two":"1984-12-09T03:30:00Z""#));
             assert_headers!(resp, "content-type" => "application/json");
         }
     }

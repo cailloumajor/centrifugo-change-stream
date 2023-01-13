@@ -6,17 +6,19 @@ use anyhow::Context as _;
 use clap::Args;
 use futures_util::stream::{AbortRegistration, Abortable};
 use futures_util::{future, FutureExt, StreamExt, TryStreamExt};
-use mongodb::bson::{doc, Bson, Document};
+use mongodb::bson::{doc, Bson};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection, Namespace};
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use tokio::sync::mpsc::Sender;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
 
 use crate::centrifugo::TagsUpdate;
 use crate::health::{HealthPing, HealthResult};
+use crate::model::{MongoDBData, TagsUpdateData};
 
-type GenericCollection = Collection<Document>;
+type DataCollection = Collection<MongoDBData>;
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");
 
@@ -66,7 +68,7 @@ struct UpdateDescription {
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn create_collection(config: &Config) -> anyhow::Result<GenericCollection> {
+pub(crate) async fn create_collection<T>(config: &Config) -> anyhow::Result<Collection<T>> {
     let mut options = ClientOptions::parse(&config.mongodb_uri)
         .await
         .context("error parsing connection string URI")?;
@@ -82,11 +84,14 @@ pub(crate) async fn create_collection(config: &Config) -> anyhow::Result<Generic
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn create_change_stream(
-    collection: &GenericCollection,
+pub(crate) async fn create_change_stream<C>(
+    collection: &Collection<C>,
     abort_reg: AbortRegistration,
     term_sender: Sender<&'static str>,
-) -> anyhow::Result<impl Stream<Item = UpdateEvent>> {
+) -> anyhow::Result<impl Stream<Item = UpdateEvent>>
+where
+    C: DeserializeOwned + Send + Sync + Unpin,
+{
     let pipeline = [doc! { "$match": { "operationType": "update" } }];
     let change_stream = collection
         .watch(pipeline, None)
@@ -113,7 +118,7 @@ pub(crate) async fn create_change_stream(
 }
 
 pub(crate) struct DatabaseActor {
-    pub(crate) collection: GenericCollection,
+    pub(crate) collection: DataCollection,
     pub(crate) tags_update_recipient: Recipient<TagsUpdate>,
 }
 
@@ -128,15 +133,19 @@ impl StreamHandler<UpdateEvent> for DatabaseActor {
 
         let namespace = item.ns.to_string();
         let channel_name = item.document_key.id;
-        let data = item
-            .update_description
-            .updated_fields
-            .into_iter()
-            .filter_map(|(k, v)| {
-                k.strip_prefix("data.")
-                    .map(|data_key| (data_key.to_owned(), v.into_relaxed_extjson()))
-            })
-            .collect();
+
+        let mut data = TagsUpdateData::with_capacity(item.update_description.updated_fields.len());
+        for (key, value) in item.update_description.updated_fields {
+            if let Some(data_key) = key.strip_prefix("data.") {
+                data.insert_value(data_key.into(), value);
+            } else if let Some(ts_key) = key.strip_prefix("sourceTimestamps.") {
+                let Bson::DateTime(date_time) = value else {
+                    error!(kind = "not a BSON DateTime", field=key, ?value);
+                    continue;
+                };
+                data.insert_ts(ts_key.into(), date_time);
+            }
+        }
 
         let tags_update = TagsUpdate {
             namespace,
@@ -155,20 +164,13 @@ impl StreamHandler<UpdateEvent> for DatabaseActor {
     }
 }
 
-type InnerData = serde_json::Map<String, serde_json::Value>;
-
-#[derive(Deserialize)]
-struct DataDocument {
-    data: InnerData,
-}
-
 #[derive(Clone)]
 pub(crate) enum CurrentDataError {
     BadNamespace,
     MongoDB,
 }
 
-pub(crate) type CurrentDataResponse = Result<Option<InnerData>, CurrentDataError>;
+pub(crate) type CurrentDataResponse = Result<Option<TagsUpdateData>, CurrentDataError>;
 
 #[derive(Debug, Message)]
 #[rtype(result = "CurrentDataResponse")]
@@ -187,7 +189,7 @@ impl Handler<CurrentDataRequest> for DatabaseActor {
     type Result = ResponseFuture<CurrentDataResponse>;
 
     fn handle(&mut self, msg: CurrentDataRequest, _ctx: &mut Self::Context) -> Self::Result {
-        let collection = self.collection.clone_with_type::<DataDocument>();
+        let collection = self.collection.clone();
 
         async move {
             debug!(?msg);
@@ -198,14 +200,13 @@ impl Handler<CurrentDataRequest> for DatabaseActor {
             }
 
             let filter = doc! { "_id": msg.id };
-            let document = collection.find_one(filter, None).await.map_err(|err| {
+            let current_data = collection.find_one(filter, None).await.map_err(|err| {
                 error!(kind = "finding document", %err);
                 CurrentDataError::MongoDB
             })?;
+            debug!(event = "data from MongoDB", ?current_data);
 
-            let data = document.map(|data_document| data_document.data);
-
-            Ok(data)
+            Ok(current_data.map(Into::into))
         }
         .instrument(info_span!("current_data_handler"))
         .boxed()
