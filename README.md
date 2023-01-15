@@ -81,5 +81,5 @@ Options:
       --mongodb-collection <MONGODB_COLLECTION>
           MongoDB collection [env: MONGODB_COLLECTION=]
   -h, --help
-          Print help information
+          Print help
 ```
