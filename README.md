@@ -64,10 +64,6 @@ $ centrifugo-change-stream --help
 Usage: centrifugo-change-stream [OPTIONS] --centrifugo-api-key <CENTRIFUGO_API_KEY> --mongodb-database <MONGODB_DATABASE> --mongodb-collection <MONGODB_COLLECTION>
 
 Options:
-  -v, --verbose...
-          More output per occurrence
-  -q, --quiet...
-          Less output per occurrence
       --listen-address <LISTEN_ADDRESS>
           Address to listen on [env: LISTEN_ADDRESS=] [default: 0.0.0.0:8080]
       --centrifugo-api-url <CENTRIFUGO_API_URL>
@@ -80,6 +76,10 @@ Options:
           MongoDB database [env: MONGODB_DATABASE=]
       --mongodb-collection <MONGODB_COLLECTION>
           MongoDB collection [env: MONGODB_COLLECTION=]
+  -v, --verbose...
+          More output per occurrence
+  -q, --quiet...
+          Less output per occurrence
   -h, --help
-          Print help information
+          Print help
 ```
