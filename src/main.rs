@@ -23,9 +23,6 @@ mod model;
 #[derive(Parser)]
 struct Args {
     #[command(flatten)]
-    verbose: Verbosity<InfoLevel>,
-
-    #[command(flatten)]
     common: CommonArgs,
 
     #[command(flatten)]
@@ -33,6 +30,9 @@ struct Args {
 
     #[command(flatten)]
     mongodb: db::Config,
+
+    #[command(flatten)]
+    verbose: Verbosity<InfoLevel>,
 }
 
 fn filter_from_verbosity<T>(verbosity: &Verbosity<T>) -> tracing::level_filters::LevelFilter
