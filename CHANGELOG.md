@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v2.1.0...v3.0.0) (2023-01-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* follow MongoDB data document schema change
+
+### Features
+
+* follow MongoDB data document schema change ([783def4](https://github.com/cailloumajor/centrifugo-change-stream/commit/783def41603c29d75867c0a03b066036cbba0576))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap to 4.1.1 ([b843fb6](https://github.com/cailloumajor/centrifugo-change-stream/commit/b843fb6517af5d3812785501f95811ad93e8cc7b))
+* follow changes in clap ([3502652](https://github.com/cailloumajor/centrifugo-change-stream/commit/35026528949bef1f6b49e8b1ead066a63b12c9ca))
+
 ## [2.1.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v2.0.2...v2.1.0) (2023-01-13)
 
 
