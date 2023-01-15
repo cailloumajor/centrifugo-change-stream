@@ -8,6 +8,7 @@ use trillium_router::Router;
 
 use crate::db::{CurrentDataError, CurrentDataRequest};
 use crate::health::HealthQuery;
+use crate::model::EnsureObject;
 
 #[derive(Clone)]
 struct AppState {
@@ -135,7 +136,7 @@ async fn centrifugo_subscribe_handler(conn: Conn, req: SubscribeRequest) -> Conn
     let current_data_result = conn_try!(current_data_reply, conn);
 
     let data = match current_data_result {
-        Ok(data) => data.unwrap_or_default(),
+        Ok(data) => EnsureObject(data),
         Err(err) => {
             return conn.with_centrifugo_proxy_error(err.into());
         }
@@ -295,7 +296,7 @@ mod tests {
     mod centrifugo_subscribe_handler {
         use mongodb::bson::{Bson, DateTime};
 
-        use crate::model::TagsUpdateData;
+        use crate::model::MongoDBData;
 
         use super::*;
 
@@ -416,11 +417,13 @@ mod tests {
 
         #[actix::test]
         async fn success_with_data() {
-            let mut tags_update_data = TagsUpdateData::with_capacity(2);
+            let mut tags_update_data = MongoDBData::with_capacity(2);
             tags_update_data.insert_value("first".into(), Bson::Int32(9));
             tags_update_data.insert_value("second".into(), Bson::String("other".into()));
-            tags_update_data.insert_ts("one".to_string(), DateTime::from_millis(1673598600000));
-            tags_update_data.insert_ts("two".to_string(), DateTime::from_millis(471411000000));
+            tags_update_data
+                .insert_timestamp("one".to_string(), DateTime::from_millis(1673598600000));
+            tags_update_data
+                .insert_timestamp("two".to_string(), DateTime::from_millis(471411000000));
             let addr = Actor::start(TestCurrentDataActor {
                 outcome: Ok(Some(tags_update_data)),
                 must_stop: false,

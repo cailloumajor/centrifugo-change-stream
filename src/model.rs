@@ -1,16 +1,10 @@
 use std::collections::HashMap;
 
 use mongodb::bson::{Bson, DateTime};
-use serde::{ser, Deserialize, Serialize, Serializer};
+use serde::ser::{self, SerializeMap, Serializer};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct MongoDBData {
-    data: HashMap<String, Bson>,
-    source_timestamps: HashMap<String, DateTime>,
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 struct Rfc3339Date(DateTime);
 
 impl From<DateTime> for Rfc3339Date {
@@ -29,42 +23,43 @@ impl Serialize for Rfc3339Date {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize)]
-pub(crate) struct TagsUpdateData {
-    #[serde(flatten)]
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    values: HashMap<String, Bson>,
-
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MongoDBData {
+    val: HashMap<String, Bson>,
     ts: HashMap<String, Rfc3339Date>,
 }
 
-impl TagsUpdateData {
+impl MongoDBData {
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
-            values: HashMap::with_capacity(capacity),
+            val: HashMap::with_capacity(capacity),
             ts: HashMap::with_capacity(capacity),
         }
     }
 
     pub(crate) fn insert_value(&mut self, k: String, v: Bson) -> Option<Bson> {
-        self.values.insert(k, v)
+        self.val.insert(k, v)
     }
 
-    pub(crate) fn insert_ts(&mut self, k: String, v: DateTime) -> Option<DateTime> {
+    pub(crate) fn insert_timestamp(&mut self, k: String, v: DateTime) -> Option<DateTime> {
         self.ts.insert(k, v.into()).map(|d| d.0)
     }
 }
 
-impl From<MongoDBData> for TagsUpdateData {
-    fn from(value: MongoDBData) -> Self {
-        Self {
-            values: value.data,
-            ts: value
-                .source_timestamps
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
+pub(crate) struct EnsureObject<T>(pub Option<T>);
+
+impl<T: Serialize> Serialize for EnsureObject<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match &self.0 {
+            Some(data) => data.serialize(serializer),
+            None => {
+                let map = serializer.serialize_map(Some(0))?;
+                map.end()
+            }
         }
     }
 }

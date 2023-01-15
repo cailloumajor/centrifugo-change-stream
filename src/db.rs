@@ -16,7 +16,7 @@ use tracing::{debug, error, info, info_span, instrument, Instrument};
 
 use crate::centrifugo::TagsUpdate;
 use crate::health::{HealthPing, HealthResult};
-use crate::model::{MongoDBData, TagsUpdateData};
+use crate::model::MongoDBData;
 
 type DataCollection = Collection<MongoDBData>;
 
@@ -134,16 +134,16 @@ impl StreamHandler<UpdateEvent> for DatabaseActor {
         let namespace = item.ns.to_string();
         let channel_name = item.document_key.id;
 
-        let mut data = TagsUpdateData::with_capacity(item.update_description.updated_fields.len());
+        let mut data = MongoDBData::with_capacity(item.update_description.updated_fields.len());
         for (key, value) in item.update_description.updated_fields {
-            if let Some(data_key) = key.strip_prefix("data.") {
+            if let Some(data_key) = key.strip_prefix("val.") {
                 data.insert_value(data_key.into(), value);
-            } else if let Some(ts_key) = key.strip_prefix("sourceTimestamps.") {
+            } else if let Some(ts_key) = key.strip_prefix("ts.") {
                 let Bson::DateTime(date_time) = value else {
                     error!(kind = "not a BSON DateTime", field=key, ?value);
                     continue;
                 };
-                data.insert_ts(ts_key.into(), date_time);
+                data.insert_timestamp(ts_key.into(), date_time);
             }
         }
 
@@ -170,7 +170,7 @@ pub(crate) enum CurrentDataError {
     MongoDB,
 }
 
-pub(crate) type CurrentDataResponse = Result<Option<TagsUpdateData>, CurrentDataError>;
+pub(crate) type CurrentDataResponse = Result<Option<MongoDBData>, CurrentDataError>;
 
 #[derive(Debug, Message)]
 #[rtype(result = "CurrentDataResponse")]
@@ -206,7 +206,7 @@ impl Handler<CurrentDataRequest> for DatabaseActor {
             })?;
             debug!(event = "data from MongoDB", ?current_data);
 
-            Ok(current_data.map(Into::into))
+            Ok(current_data)
         }
         .instrument(info_span!("current_data_handler"))
         .boxed()
