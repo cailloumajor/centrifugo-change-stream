@@ -43,6 +43,11 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Lint code with Clippy
         run: cargo clippy -- -D warnings
+      - name: Check command usage in README.md
+        # Thanks to https://unix.stackexchange.com/a/17405
+        run: diff
+          <(sed '1,/\$ centrifugo-change-stream --help/d;/```/,$d' README.md)
+          <(cargo run --quiet --bin centrifugo-change-stream -- --help)
       - name: Install grcov
         run: cargo install grcov
       - name: Run unit tests
@@ -66,12 +71,6 @@ jobs:
           fail_ci_if_error: true
           files: lcov.info
           flags: unittests
-      - run: cargo build
-      - name: Check command usage in README.md
-        # Thanks to https://unix.stackexchange.com/a/17405
-        run: diff
-          <(sed '1,/\$ centrifugo-change-stream --help/d;/```/,$d' README.md)
-          <(cargo run --quiet --bin centrifugo-change-stream -- --help)
   integration:
     name: Integration tests
     runs-on: ubuntu-22.04
