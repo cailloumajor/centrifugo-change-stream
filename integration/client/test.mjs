@@ -11,16 +11,16 @@ const validDate = (ts) => !isNaN(Date.parse(ts));
 const checkData = (data, context) => {
     const errorMessage = (member) =>
         format(
-            "testing %s failed for %s member, element: %s",
+            "testing %s failed for %O member, element: %s",
             context,
             data,
             member
         );
 
-    if (data.integer && !inRange(data.integer, 150, 250)) {
+    if (data.val?.integer && !inRange(data.val.integer, 150, 250)) {
         throw new Error(errorMessage("integer"));
     }
-    if (data.float && !inRange(data.float, 32.0, 42.0)) {
+    if (data.val?.float && !inRange(data.val.float, 32.0, 42.0)) {
         throw new Error(errorMessage("float"));
     }
     if (data.ts?.first && !validDate(data.ts.first)) {
@@ -67,7 +67,12 @@ sub.on("subscribed", ({ channel, data }) => {
         channel,
         data
     );
-    if (!data.integer || !data.float || !data.ts?.first || !data.ts?.second) {
+    if (
+        !data.val?.integer ||
+        !data.val?.float ||
+        !data.ts?.first ||
+        !data.ts?.second
+    ) {
         throw new Error("missing data property(ies) in initial data");
     }
     checkData(data, "subscribe proxy");
@@ -90,10 +95,10 @@ await new Promise((resolve) => {
     const interval = setInterval(() => {
         let membersCount = [0, 0, 0, 0];
         publications.forEach((pub) => {
-            if (pub.integer) {
+            if (pub.val?.integer) {
                 membersCount[0] += 1;
             }
-            if (pub.float) {
+            if (pub.val?.float) {
                 membersCount[1] += 1;
             }
             if (pub.ts?.first) {

@@ -15,10 +15,10 @@ function updateTestCollection() {
                 updatedAt: true
             },
             $set: {
-                "data.integer": Math.floor(Math.random() * 100 + 150),
-                "data.float": Math.random() * 10 + 32,
-                "sourceTimestamps.first": genTimestamp(),
-                "sourceTimestamps.second": genTimestamp(),
+                "val.integer": Math.floor(Math.random() * 100 + 150),
+                "val.float": Math.random() * 10 + 32,
+                "ts.first": genTimestamp(),
+                "ts.second": genTimestamp(),
             }
         },
         {

@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::errors::{TracedError, TracedErrorContext};
 use crate::health::{HealthPing, HealthResult};
-use crate::model::TagsUpdateData;
+use crate::model::MongoDBData;
 
 type HttpClient = trillium_client::Client<TcpConnector>;
 
@@ -106,7 +106,7 @@ impl Client {
 pub(crate) struct TagsUpdate {
     pub(crate) namespace: String,
     pub(crate) channel_name: String,
-    pub(crate) data: TagsUpdateData,
+    pub(crate) data: MongoDBData,
 }
 
 pub(crate) struct CentrifugoActor {
