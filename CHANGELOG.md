@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.1](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.0.0...v3.0.1) (2023-02-06)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate anyhow to 1.0.69 ([41ad7c3](https://github.com/cailloumajor/centrifugo-change-stream/commit/41ad7c317074e8e458dc3a8fbf099bc7d1f5991d))
+* **deps:** update rust crate clap to 4.1.4 ([8164166](https://github.com/cailloumajor/centrifugo-change-stream/commit/81641665e512075e1da5aa11b4091ae8bca37e2b))
+* **deps:** update rust crate futures-util to 0.3.26 ([dc9473b](https://github.com/cailloumajor/centrifugo-change-stream/commit/dc9473bd4695ad8d7a009b36a683a222a5732e1e))
+* **deps:** update rust crate serde_json to 1.0.92 ([7e50fcc](https://github.com/cailloumajor/centrifugo-change-stream/commit/7e50fccfd57de00b93800e1106885d38c6cf7351))
+* **deps:** update rust crate tokio to 1.24.2 ([c096e9f](https://github.com/cailloumajor/centrifugo-change-stream/commit/c096e9f00d6842962ac5e3ae4a4bcc0dd7f748ad))
+* **deps:** update rust crate tokio to 1.25.0 ([2167fd0](https://github.com/cailloumajor/centrifugo-change-stream/commit/2167fd02626e65c43084bbc6f5cd4dea0151b008))
+* **deps:** update rust crate trillium-client to 0.3.0 ([7bb77da](https://github.com/cailloumajor/centrifugo-change-stream/commit/7bb77da83c2cb64b99b1cfe3155a3e83a8cee74a))
+* **deps:** update rust docker tag to v1.67.0 ([3a88ffb](https://github.com/cailloumajor/centrifugo-change-stream/commit/3a88ffbd0c467244d63a1f5a1d48f9863bf62db9))
+* **deps:** update tonistiigi/xx docker tag to v1.2.0 ([353b7a7](https://github.com/cailloumajor/centrifugo-change-stream/commit/353b7a7887caa297deec612b5cae49a2b9aa8e30))
+* trillium-client 0.3.0 breaking changes ([57b7670](https://github.com/cailloumajor/centrifugo-change-stream/commit/57b76701661982b168c320d4e0301ccfcc651227))
+* use xx-cargo ([00ce173](https://github.com/cailloumajor/centrifugo-change-stream/commit/00ce173502ffa21492704a8782aeb201de97b9c2))
+
 ## [3.0.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v2.1.0...v3.0.0) (2023-01-15)
 
 
