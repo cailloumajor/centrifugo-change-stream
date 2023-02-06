@@ -21,7 +21,7 @@ fn main() -> Result<()> {
         args.common.listen_address.port()
     );
 
-    let mut resp = block_on(ClientConn::get(url.as_str()).execute())?;
+    let mut resp = block_on(async { ClientConn::get(url.as_str()).await })?;
 
     let status = resp.status().context("missing status code")?;
 

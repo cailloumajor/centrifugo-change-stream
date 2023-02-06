@@ -76,9 +76,9 @@ impl Client {
         let mut conn = self
             .conn()
             .with_json_body(&json)
-            .expect("serialization error");
-
-        conn.send().await.context_during("request send")?;
+            .expect("serialization error")
+            .await
+            .context_during("request send")?;
 
         let status_code = conn.status().expect("missing status code");
         if !status_code.is_success() {
