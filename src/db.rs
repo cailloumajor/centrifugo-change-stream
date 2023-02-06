@@ -221,7 +221,7 @@ impl Handler<HealthPing> for DatabaseActor {
         if state == ActorState::Running {
             Ok(())
         } else {
-            Err(format!("actor is in `{:?}` state", state))
+            Err(format!("actor is in `{state:?}` state"))
         }
     }
 }

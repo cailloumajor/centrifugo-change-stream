@@ -143,7 +143,7 @@ impl Handler<HealthPing> for CentrifugoActor {
         let state = ctx.state();
         async move {
             if state != ActorState::Running {
-                return Err(format!("actor is in `{:?}` state", state));
+                return Err(format!("actor is in `{state:?}` state"));
             }
 
             if let Err(err) = client.publish("_", ()).await {

@@ -61,7 +61,7 @@ impl Handler<HealthQuery> for HealthService {
                     System::current().stop();
                 }
                 if let Err(err) = pong.unwrap() {
-                    return Err(format!("component `{}` is unhealthy: {}", name, err));
+                    return Err(format!("component `{name}` is unhealthy: {err}"));
                 }
             }
 
