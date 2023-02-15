@@ -25,7 +25,7 @@ trillium-tokio = "0.2.1"
 url = "2.3.1"
 
 [dependencies.clap]
-version = "4.1.4"
+version = "4.1.6"
 default-features = false
 features = [ "std", "help", "usage", "error-context", "derive", "env" ]
 
@@ -40,5 +40,5 @@ default-features = false
 features = [ "smallvec", "fmt", "ansi" ]
 
 [dev-dependencies]
-trillium-http = "0.2.10"
+trillium-http = "0.2.9"
 trillium-testing = { version = "0.4.0", features = [ "tokio" ] }
