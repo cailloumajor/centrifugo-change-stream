@@ -58,7 +58,7 @@ for i in $(seq 1 $max_attempts); do
     [[ $i != "$max_attempts" ]] && sleep 5
 done
 if [ "$try_success" != "true" ]; then
-    die "Failure trying to initialize MongoDB"
+    die "$me: failure trying to initialize MongoDB"
 fi
 
 # Start pushing data to MongoDB
@@ -67,6 +67,11 @@ docker compose exec -d mongodb mongosh --norc /usr/src/push-data.mongodb
 # Run tests
 if ! docker compose up client --exit-code-from client --no-log-prefix --quiet-pull; then
     die "$me: tests failure"
+fi
+
+# Test healthcheck binary
+if ! docker compose exec centrifugo-change-stream /usr/local/bin/healthcheck; then
+    die "$me: healthcheck failure"
 fi
 
 echo "$me: success"
