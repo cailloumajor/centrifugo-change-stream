@@ -125,3 +125,61 @@ impl<T: Serialize> Serialize for EnsureObject<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod update_event {
+        use super::*;
+
+        #[test]
+        fn into_centrifugo() {
+            let ns = Namespace {
+                db: "testdb".to_string(),
+                coll: "testcoll".to_string(),
+            };
+            let document_key = DocumentKey {
+                id: "testid".to_string(),
+            };
+            let updated_fields = HashMap::from([
+                ("ignored".to_string(), Bson::Int32(42)),
+                ("val.first".to_string(), Bson::Boolean(true)),
+                ("val.second".to_string(), Bson::Int32(5646)),
+                ("ts.invalid".to_string(), Bson::Boolean(false)),
+                (
+                    "ts.some".to_string(),
+                    Bson::DateTime(DateTime::from_millis(0)),
+                ),
+                (
+                    "ts.other".to_string(),
+                    Bson::DateTime(DateTime::from_millis(45000)),
+                ),
+            ]);
+            let update_description = UpdateDescription { updated_fields };
+            let update_event = UpdateEvent {
+                ns,
+                document_key,
+                update_description,
+            };
+
+            let (channel, data) = update_event.into_centrifugo();
+
+            assert_eq!(channel, "testdb.testcoll:testid");
+
+            assert_eq!(data.val.len(), 2);
+            assert_eq!(data.val["first"].to_string(), "true");
+            assert_eq!(data.val["second"].to_string(), "5646");
+
+            assert_eq!(data.ts.len(), 2);
+            assert_eq!(
+                data.ts["some"].0.to_string(),
+                "1970-01-01 0:00:00.0 +00:00:00"
+            );
+            assert_eq!(
+                data.ts["other"].0.to_string(),
+                "1970-01-01 0:00:45.0 +00:00:00"
+            );
+        }
+    }
+}
