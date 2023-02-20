@@ -121,7 +121,7 @@ impl Client {
                         }
                         CentrifugoClientRequest::Health(outcome_tx) => {
                             let outcome = self.publish("_", ()).await.is_ok();
-                            if let Err(_) = outcome_tx.send(outcome) {
+                            if outcome_tx.send(outcome).is_err() {
                                 error!(kind = "outcome channel sending");
                             }
                         }

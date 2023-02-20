@@ -97,9 +97,8 @@ impl MongoDBCollection {
                     let filter = doc! { "_id": document_id };
                     let found = collection.find_one(filter, None).await.map_err(|err| {
                         error!(kind = "finding document", %err);
-                        ()
                     });
-                    if let Err(_) = response_tx.send(found) {
+                    if response_tx.send(found).is_err() {
                         error!(kind = "response channel sending");
                     }
                 }
