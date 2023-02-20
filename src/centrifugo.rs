@@ -1,16 +1,16 @@
-use actix::prelude::*;
+use std::sync::Arc;
+
 use clap::Args;
-use futures_util::FutureExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{debug, info_span, instrument, Instrument};
+use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
+use tracing::{debug, error, info, info_span, instrument, Instrument};
 use trillium_client::Conn;
 use trillium_tokio::TcpConnector;
 use url::Url;
 
-use crate::errors::{TracedError, TracedErrorContext};
-use crate::health::{HealthPing, HealthResult};
-use crate::model::MongoDBData;
+use crate::model::CentrifugoClientRequest;
 
 type HttpClient = trillium_client::Client<TcpConnector>;
 
@@ -58,12 +58,8 @@ impl Client {
             .with_header("Authorization", self.auth_header.to_owned())
     }
 
-    #[instrument(skip_all)]
-    pub(crate) async fn publish(
-        &self,
-        channel: &str,
-        data: impl Serialize,
-    ) -> Result<(), TracedError> {
+    #[instrument(name = "centrifugo_publish", skip_all)]
+    async fn publish(&self, channel: &str, data: impl Serialize) -> Result<(), ()> {
         let json = json!({
             "method": "publish",
             "params": {
@@ -73,88 +69,71 @@ impl Client {
         });
         debug!(%json);
 
-        let mut conn = self
+        let mut conn = match self
             .conn()
             .with_json_body(&json)
             .expect("serialization error")
             .await
-            .context_during("request send")?;
+        {
+            Ok(conn) => conn,
+            Err(err) => {
+                error!(kind = "request sending", %err);
+                return Err(());
+            }
+        };
 
         let status_code = conn.status().expect("missing status code");
         if !status_code.is_success() {
-            return Err(TracedError::from_kind(
-                "bad status code",
-                &status_code.to_string(),
-            ));
+            error!(kind = "bad status code", %status_code);
+            return Err(());
         }
 
-        let response: PublishResponse = conn
-            .response_json()
-            .await
-            .context_during("deserializing response")?;
+        let response: PublishResponse = match conn.response_json().await {
+            Ok(response) => response,
+            Err(err) => {
+                error!(kind = "response deserialization", %err);
+                return Err(());
+            }
+        };
 
         if let PublishResponse::Error { code, message } = response {
-            return Err(TracedError::from_centrifugo_error(code, &message));
+            error!(kind = "Centrifugo error", code, message);
+            return Err(());
         }
 
         Ok(())
     }
-}
 
-#[derive(Message)]
-#[rtype(result = "()")]
-pub(crate) struct TagsUpdate {
-    pub(crate) namespace: String,
-    pub(crate) channel_name: String,
-    pub(crate) data: MongoDBData,
-}
+    pub(crate) fn handle_requests(
+        self: Arc<Self>,
+    ) -> (mpsc::Sender<CentrifugoClientRequest>, JoinHandle<()>) {
+        let (tx, mut rx) = mpsc::channel(2);
 
-pub(crate) struct CentrifugoActor {
-    pub(crate) client: Client,
-}
+        let task = tokio::spawn(
+            async move {
+                info!(status = "started");
 
-impl Actor for CentrifugoActor {
-    type Context = Context<Self>;
-}
+                while let Some(request) = rx.recv().await {
+                    match request {
+                        CentrifugoClientRequest::TagsUpdate(event) => {
+                            let (channel, data) = event.into_centrifugo();
+                            let _ = self.publish(&channel, data).await;
+                        }
+                        CentrifugoClientRequest::Health(outcome_tx) => {
+                            let outcome = self.publish("_", ()).await.is_ok();
+                            if let Err(_) = outcome_tx.send(outcome) {
+                                error!(kind = "outcome channel sending");
+                            }
+                        }
+                    }
+                }
 
-impl Handler<TagsUpdate> for CentrifugoActor {
-    type Result = ResponseFuture<()>;
-
-    fn handle(&mut self, msg: TagsUpdate, _ctx: &mut Self::Context) -> Self::Result {
-        let client = self.client.clone();
-        async move {
-            debug!(msg.namespace, msg.channel_name, ?msg.data);
-            let channel = msg.namespace + ":" + msg.channel_name.as_str();
-
-            if let Err(err) = client.publish(&channel, msg.data).await {
-                err.trace_error();
+                info!(status = "terminating");
             }
-        }
-        .instrument(info_span!("tags update handler"))
-        .boxed()
-    }
-}
+            .instrument(info_span!("centrifugo_handle_requests")),
+        );
 
-impl Handler<HealthPing> for CentrifugoActor {
-    type Result = ResponseFuture<HealthResult>;
-
-    fn handle(&mut self, _msg: HealthPing, ctx: &mut Self::Context) -> Self::Result {
-        let client = self.client.clone();
-        let state = ctx.state();
-        async move {
-            if state != ActorState::Running {
-                return Err(format!("actor is in `{state:?}` state"));
-            }
-
-            if let Err(err) = client.publish("_", ()).await {
-                err.trace_error();
-                return Err("publish error".into());
-            }
-
-            Ok(())
-        }
-        .instrument(info_span!("Centrifugo health handler"))
-        .boxed()
+        (tx, task)
     }
 }
 

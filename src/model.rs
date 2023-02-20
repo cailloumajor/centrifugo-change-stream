@@ -1,8 +1,70 @@
 use std::collections::HashMap;
 
 use mongodb::bson::{Bson, DateTime};
+use mongodb::Namespace;
 use serde::ser::{self, SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
+use tokio::sync::oneshot;
+use tracing::{error, info_span};
+
+#[derive(Deserialize)]
+#[serde(remote = "Namespace")]
+struct UpdateNamespace {
+    db: String,
+    coll: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DocumentKey {
+    #[serde(rename = "_id")]
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateDescription {
+    updated_fields: HashMap<String, Bson>,
+}
+
+/// Custom change stream event, specialized for updates.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateEvent {
+    #[serde(with = "UpdateNamespace")]
+    ns: Namespace,
+    document_key: DocumentKey,
+    update_description: UpdateDescription,
+}
+
+impl UpdateEvent {
+    pub(crate) fn into_centrifugo(self) -> (String, MongoDBData) {
+        let _entered = info_span!("update_event_into_centrifugo").entered();
+
+        let mut data = MongoDBData::with_capacity(self.update_description.updated_fields.len());
+        for (key, value) in self.update_description.updated_fields {
+            if let Some(data_key) = key.strip_prefix("val.") {
+                data.insert_value(data_key.into(), value);
+            } else if let Some(ts_key) = key.strip_prefix("ts.") {
+                let Bson::DateTime(date_time) = value else {
+                    error!(kind = "not a BSON DateTime", field=key, ?value);
+                    continue;
+                };
+                data.insert_timestamp(ts_key.into(), date_time);
+            }
+        }
+
+        let channel = self.ns.to_string() + ":" + self.document_key.id.as_str();
+
+        (channel, data)
+    }
+}
+
+pub(crate) enum CentrifugoClientRequest {
+    TagsUpdate(UpdateEvent),
+    Health(oneshot::Sender<bool>),
+}
+
+pub(crate) type CurrentDataResponse = Result<Option<MongoDBData>, ()>;
 
 #[derive(Clone, Debug, Deserialize)]
 struct Rfc3339Date(DateTime);

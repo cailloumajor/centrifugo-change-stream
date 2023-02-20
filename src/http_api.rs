@@ -1,19 +1,20 @@
-use actix::Recipient;
+use std::sync::Arc;
+
 use serde::Deserialize;
 use serde_json::json;
-use tracing::{debug, instrument};
-use trillium::{conn_try, Conn, Handler, State, Status};
+use tokio::sync::{mpsc, oneshot};
+use tracing::{debug, error, instrument};
+use trillium::{Conn, Handler, State, Status};
 use trillium_api::{api, ApiConnExt};
 use trillium_router::Router;
 
-use crate::db::{CurrentDataError, CurrentDataRequest};
-use crate::health::HealthQuery;
-use crate::model::EnsureObject;
+use crate::model::{CentrifugoClientRequest, CurrentDataResponse, EnsureObject};
 
 #[derive(Clone)]
 struct AppState {
-    current_data_service: Recipient<CurrentDataRequest>,
-    health_service: Recipient<HealthQuery>,
+    namespace_prefix: Arc<String>,
+    centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
+    current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -23,13 +24,12 @@ struct SubscribeRequest {
     channel: String,
 }
 
-#[repr(u32)]
+#[repr(u16)]
 #[derive(Clone, Copy)]
 enum CentrifugoProxyError {
     UnsupportedProtocol = 1000,
     UnsupportedEncoding,
-    BadChannelName,
-    BadNamespace,
+    BadChannelNamespace,
     InternalError,
 }
 
@@ -38,20 +38,8 @@ impl CentrifugoProxyError {
         match self {
             Self::UnsupportedProtocol => "unsupported protocol",
             Self::UnsupportedEncoding => "unsupported encoding",
-            Self::BadChannelName => "bad channel name",
-            Self::BadNamespace => "bad namespace",
+            Self::BadChannelNamespace => "bad channel namespace",
             Self::InternalError => "internal error",
-        }
-    }
-}
-
-impl From<CurrentDataError> for CentrifugoProxyError {
-    fn from(c: CurrentDataError) -> Self {
-        use CentrifugoProxyError::*;
-
-        match c {
-            CurrentDataError::BadNamespace => BadNamespace,
-            CurrentDataError::MongoDB => InternalError,
         }
     }
 }
@@ -64,7 +52,7 @@ impl CentrifugoProxyErrorConnExt for Conn {
     fn with_centrifugo_proxy_error(self, proxy_error: CentrifugoProxyError) -> Self {
         let error_object = json!({
             "error": {
-                "code": proxy_error as u32,
+                "code": proxy_error as u16,
                 "message": proxy_error.message()
             }
         });
@@ -73,13 +61,16 @@ impl CentrifugoProxyErrorConnExt for Conn {
 }
 
 pub(crate) fn handler(
-    health_service: Recipient<HealthQuery>,
-    current_data_service: Recipient<CurrentDataRequest>,
+    mongodb_namespace: String,
+    centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
+    current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
 ) -> impl Handler {
+    let namespace_prefix = Arc::new(mongodb_namespace + ":");
     (
         State::new(AppState {
-            health_service,
-            current_data_service,
+            namespace_prefix,
+            centrifugo_request,
+            current_data,
         }),
         Router::new()
             .get("/health", health_handler)
@@ -89,20 +80,22 @@ pub(crate) fn handler(
 
 #[instrument(name = "health_api_handler", skip_all)]
 async fn health_handler(conn: Conn) -> Conn {
-    let health_result = conn
-        .state::<AppState>()
-        .unwrap()
-        .health_service
-        .send(HealthQuery)
-        .await;
-    let health_result = conn_try!(health_result, conn);
+    let (tx, rx) = oneshot::channel();
+    let request = CentrifugoClientRequest::Health(tx);
 
-    match health_result {
-        Ok(_) => conn.with_status(Status::NoContent).halt(),
-        Err(err) => conn
-            .with_status(Status::InternalServerError)
-            .with_body(err)
-            .halt(),
+    let request_sender = &conn.state::<AppState>().unwrap().centrifugo_request;
+    if let Err(err) = request_sender.try_send(request) {
+        error!(kind = "request channel sending", %err);
+        return conn.with_status(Status::InternalServerError).halt();
+    }
+
+    match rx.await {
+        Ok(true) => conn.with_status(Status::NoContent).halt(),
+        Ok(false) => conn.with_status(Status::InternalServerError).halt(),
+        Err(err) => {
+            error!(kind = "outcome channel receiving", %err);
+            conn.with_status(Status::InternalServerError).halt()
+        }
     }
 }
 
@@ -119,26 +112,27 @@ async fn centrifugo_subscribe_handler(conn: Conn, req: SubscribeRequest) -> Conn
         return conn.with_centrifugo_proxy_error(UnsupportedEncoding);
     }
 
-    let channel_parts: Vec<_> = req.channel.splitn(2, ':').collect();
-    let [namespace, id] = channel_parts[..] else {
-        return conn.with_centrifugo_proxy_error(BadChannelName)
+    let state = conn.state::<AppState>().unwrap();
+
+    let Some(channel_name) = req.channel.strip_prefix(&*state.namespace_prefix) else {
+        return conn.with_centrifugo_proxy_error(BadChannelNamespace);
     };
 
-    let dotted_namespace = namespace.replacen('-', ".", 1);
+    let (response_tx, response_rx) = oneshot::channel();
+    if let Err(err) = state
+        .current_data
+        .try_send((channel_name.to_owned(), response_tx))
+    {
+        error!(kind = "request channel sending", %err);
+        return conn.with_status(Status::InternalServerError).halt();
+    };
 
-    let msg = CurrentDataRequest::new(dotted_namespace, id.into());
-    let current_data_reply = conn
-        .state::<AppState>()
-        .unwrap()
-        .current_data_service
-        .send(msg)
-        .await;
-    let current_data_result = conn_try!(current_data_reply, conn);
-
-    let data = match current_data_result {
-        Ok(data) => EnsureObject(data),
+    let data = match response_rx.await {
+        Ok(Ok(data)) => EnsureObject(data),
+        Ok(Err(_)) => return conn.with_centrifugo_proxy_error(InternalError),
         Err(err) => {
-            return conn.with_centrifugo_proxy_error(err.into());
+            error!(kind = "outcome channel receiving", %err);
+            return conn.with_status(Status::InternalServerError).halt();
         }
     };
 
@@ -155,60 +149,10 @@ async fn centrifugo_subscribe_handler(conn: Conn, req: SubscribeRequest) -> Conn
 
 #[cfg(test)]
 mod tests {
-    use actix::{Actor, ActorContext, Context, Handler};
     use trillium_http::{Conn as HttpConn, Synthetic};
     use trillium_testing::prelude::*;
 
-    use crate::db::CurrentDataResponse;
-    use crate::health::HealthResult;
-
     use super::*;
-
-    struct TestHealthActor {
-        outcome: HealthResult,
-        must_stop: bool,
-    }
-
-    impl Actor for TestHealthActor {
-        type Context = Context<Self>;
-
-        fn started(&mut self, ctx: &mut Self::Context) {
-            if self.must_stop {
-                ctx.stop();
-            }
-        }
-    }
-
-    impl Handler<HealthQuery> for TestHealthActor {
-        type Result = HealthResult;
-
-        fn handle(&mut self, _msg: HealthQuery, _ctx: &mut Self::Context) -> Self::Result {
-            self.outcome.clone()
-        }
-    }
-
-    struct TestCurrentDataActor {
-        outcome: CurrentDataResponse,
-        must_stop: bool,
-    }
-
-    impl Actor for TestCurrentDataActor {
-        type Context = Context<Self>;
-
-        fn started(&mut self, ctx: &mut Self::Context) {
-            if self.must_stop {
-                ctx.stop();
-            }
-        }
-    }
-
-    impl Handler<CurrentDataRequest> for TestCurrentDataActor {
-        type Result = CurrentDataResponse;
-
-        fn handle(&mut self, _msg: CurrentDataRequest, _ctx: &mut Self::Context) -> Self::Result {
-            self.outcome.clone()
-        }
-    }
 
     async fn handle(
         method: Method,
@@ -237,55 +181,73 @@ mod tests {
     mod health_handler {
         use super::*;
 
-        async fn test_handler(health_service: Recipient<HealthQuery>) -> impl trillium::Handler {
-            let current_data_service = Actor::start(TestCurrentDataActor {
-                outcome: Ok(None),
-                must_stop: false,
-            })
-            .recipient();
+        async fn test_handler(
+            centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
+        ) -> impl trillium::Handler {
+            let namespace_prefix = Arc::new(String::from(""));
+            let (current_data, _) = mpsc::channel(1);
             (
                 State::new(AppState {
-                    health_service,
-                    current_data_service,
+                    namespace_prefix,
+                    centrifugo_request,
+                    current_data,
                 }),
                 health_handler,
             )
         }
 
-        #[actix::test]
-        async fn mailbox_error() {
-            let addr = Actor::start(TestHealthActor {
-                outcome: Ok(()),
-                must_stop: true,
-            });
-            let handler = test_handler(addr.recipient()).await;
+        #[tokio::test]
+        async fn request_sending_error() {
+            let (tx, _) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
 
             let resp = handle(Method::Get, "/", (), &handler).await;
 
             assert_status!(resp, 500);
         }
 
-        #[actix::test]
-        async fn health_error() {
-            let addr = Actor::start(TestHealthActor {
-                outcome: Err("health error".into()),
-                must_stop: false,
+        #[tokio::test]
+        async fn outcome_channel_receiving_error() {
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
+            tokio::spawn(async move {
+                let CentrifugoClientRequest::Health(response) = rx.recv().await.unwrap() else {
+                    panic!("wrong request");
+                };
+                drop(response);
             });
-            let handler = test_handler(addr.recipient()).await;
 
-            let mut resp = handle(Method::Get, "/", (), &handler).await;
+            let resp = handle(Method::Get, "/", (), &handler).await;
 
             assert_status!(resp, 500);
-            assert_eq!(body_string(&mut resp).await, "health error");
         }
 
-        #[actix::test]
-        async fn success() {
-            let addr = Actor::start(TestHealthActor {
-                outcome: Ok(()),
-                must_stop: false,
+        #[tokio::test]
+        async fn health_error() {
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
+            tokio::spawn(async move {
+                let CentrifugoClientRequest::Health(response) = rx.recv().await.unwrap() else {
+                    panic!("wrong request");
+                };
+                response.send(false).unwrap();
             });
-            let handler = test_handler(addr.recipient()).await;
+
+            let resp = handle(Method::Get, "/", (), &handler).await;
+
+            assert_status!(resp, 500);
+        }
+
+        #[tokio::test]
+        async fn success() {
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
+            tokio::spawn(async move {
+                let CentrifugoClientRequest::Health(response) = rx.recv().await.unwrap() else {
+                    panic!("wrong request");
+                };
+                response.send(true).unwrap();
+            });
 
             let resp = handle(Method::Get, "/", (), &handler).await;
 
@@ -301,17 +263,15 @@ mod tests {
         use super::*;
 
         async fn test_handler(
-            current_data_service: Recipient<CurrentDataRequest>,
+            current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
         ) -> impl trillium::Handler {
-            let health_service = Actor::start(TestHealthActor {
-                outcome: Ok(()),
-                must_stop: false,
-            })
-            .recipient();
+            let namespace_prefix = Arc::new(String::from("ns:"));
+            let (centrifugo_request, _) = mpsc::channel(1);
             (
                 State::new(AppState {
-                    health_service,
-                    current_data_service,
+                    namespace_prefix,
+                    centrifugo_request,
+                    current_data,
                 }),
                 api(centrifugo_subscribe_handler),
             )
@@ -351,28 +311,26 @@ mod tests {
             );
         }
 
-        #[test]
-        fn bad_channel_name() {
-            let resp = post("/")
-                .with_request_body(r#"{"protocol":"json","encoding":"json","channel":"bad"}"#)
-                .with_request_header("content-type", "application/json")
-                .on(&api(centrifugo_subscribe_handler));
+        #[tokio::test]
+        async fn bad_channel_namespace() {
+            let (tx, _) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
+            let body = r#"{"protocol":"json","encoding":"json","channel":"chan"}"#;
 
-            assert_response!(
-                resp,
-                200,
-                r#"{"error":{"code":1002,"message":"bad channel name"}}"#,
-                "content-type" => "application/json"
+            let mut resp = handle(Method::Get, "/", body, &handler).await;
+
+            assert_status!(resp, 200);
+            assert_eq!(
+                body_string(&mut resp).await,
+                r#"{"error":{"code":1002,"message":"bad channel namespace"}}"#
             );
+            assert_headers!(resp, "content-type" => "application/json");
         }
 
-        #[actix::test]
-        async fn mailbox_error() {
-            let addr = Actor::start(TestCurrentDataActor {
-                outcome: Ok(None),
-                must_stop: true,
-            });
-            let handler = test_handler(addr.recipient()).await;
+        #[tokio::test]
+        async fn request_sending_error() {
+            let (tx, _) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
 
             let resp = handle(Method::Get, "/", body, &handler).await;
@@ -380,33 +338,50 @@ mod tests {
             assert_status!(resp, 500);
         }
 
-        #[actix::test]
-        async fn current_data_error() {
-            let addr = Actor::start(TestCurrentDataActor {
-                outcome: Err(CurrentDataError::BadNamespace),
-                must_stop: false,
-            });
-            let handler = test_handler(addr.recipient()).await;
+        #[tokio::test]
+        async fn outcome_channel_receiving_error() {
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
+            tokio::spawn(async move {
+                let (_, response) = rx.recv().await.unwrap();
+                drop(response);
+            });
+
+            let resp = handle(Method::Get, "/", body, &handler).await;
+
+            assert_status!(resp, 500);
+        }
+
+        #[tokio::test]
+        async fn current_data_error() {
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
+            let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
+            tokio::spawn(async move {
+                let (_, response) = rx.recv().await.unwrap();
+                response.send(Err(())).unwrap();
+            });
 
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 
             assert_status!(resp, 200);
             assert_eq!(
                 body_string(&mut resp).await,
-                r#"{"error":{"code":1003,"message":"bad namespace"}}"#
+                r#"{"error":{"code":1003,"message":"internal error"}}"#
             );
             assert_headers!(resp, "content-type" => "application/json");
         }
 
-        #[actix::test]
+        #[tokio::test]
         async fn success_no_data() {
-            let addr = Actor::start(TestCurrentDataActor {
-                outcome: Ok(None),
-                must_stop: false,
-            });
-            let handler = test_handler(addr.recipient()).await;
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
+            tokio::spawn(async move {
+                let (_, response) = rx.recv().await.unwrap();
+                response.send(Ok(None)).unwrap();
+            });
 
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 
@@ -415,7 +390,7 @@ mod tests {
             assert_headers!(resp, "content-type" => "application/json");
         }
 
-        #[actix::test]
+        #[tokio::test]
         async fn success_with_data() {
             let mut tags_update_data = MongoDBData::with_capacity(2);
             tags_update_data.insert_value("first".into(), Bson::Int32(9));
@@ -424,12 +399,13 @@ mod tests {
                 .insert_timestamp("one".to_string(), DateTime::from_millis(1673598600000));
             tags_update_data
                 .insert_timestamp("two".to_string(), DateTime::from_millis(471411000000));
-            let addr = Actor::start(TestCurrentDataActor {
-                outcome: Ok(Some(tags_update_data)),
-                must_stop: false,
-            });
-            let handler = test_handler(addr.recipient()).await;
+            let (tx, mut rx) = mpsc::channel(1);
+            let handler = test_handler(tx).await;
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
+            tokio::spawn(async move {
+                let (_, response) = rx.recv().await.unwrap();
+                response.send(Ok(Some(tags_update_data))).unwrap();
+            });
 
             let mut resp = handle(Method::Get, "/", body, &handler).await;
 
