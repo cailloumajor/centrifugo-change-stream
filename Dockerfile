@@ -14,6 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends clang lld
 COPY Cargo.lock Cargo.toml install-cross-deps.sh ./
 COPY src ./src
 
+RUN --mount=type=cache,target=/usr/local/cargo/git/db \
+    --mount=type=cache,target=/usr/local/cargo/registry/index \
+    --mount=type=cache,target=/usr/local/cargo/registry/cache \
+    cargo fetch
+
 ARG TARGETPLATFORM
 # hadolint ignore=SC1091
 RUN --mount=type=cache,target=/usr/local/cargo/git/db \
