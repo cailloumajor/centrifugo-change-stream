@@ -83,7 +83,11 @@ async fn main() -> anyhow::Result<()> {
 
     let mongodb_collection = db::create_collection(&args.mongodb).await?;
     let change_stream_task = mongodb_collection
-        .handle_change_stream(centrifugo_requests_tx.clone(), abort_reg)
+        .handle_change_stream(
+            centrifugo_requests_tx.clone(),
+            abort_reg,
+            api_stopper.clone(),
+        )
         .await?;
     let (current_data_tx, current_data_task) = mongodb_collection.handle_current_data();
 
@@ -108,13 +112,14 @@ async fn main() -> anyhow::Result<()> {
 
     signals_handle.close();
 
-    tokio::try_join!(
+    let (change_stream_task_result, ..) = tokio::try_join!(
+        change_stream_task,
         signals_task,
         centrifugo_client_task,
-        change_stream_task,
         current_data_task
     )
     .context("error joining tasks")?;
+    change_stream_task_result?;
 
     Ok(())
 }
