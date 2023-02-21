@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.1.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.0.1...v3.1.0) (2023-02-21)
+
+
+### Features
+
+* stop using actix ([977a2b6](https://github.com/cailloumajor/centrifugo-change-stream/commit/977a2b6c2c69fe8daf9943442e7aca825951eae7))
+
+
+### Bug Fixes
+
+* add test for UpdateEvent::into_centrifugo ([d4ccc26](https://github.com/cailloumajor/centrifugo-change-stream/commit/d4ccc2691e8ad60f28ba7fc275734aed23373255))
+* **deps:** update rust crate clap to 4.1.6 ([b773337](https://github.com/cailloumajor/centrifugo-change-stream/commit/b77333791cbd9aa5b3b54959c4f961f33224a522))
+* **deps:** update rust crate serde_json to 1.0.93 ([9f3c30c](https://github.com/cailloumajor/centrifugo-change-stream/commit/9f3c30cc716fb5448e615727575e70ed551de9c8))
+* **deps:** update rust crate signal-hook to 0.3.15 ([e90d8e2](https://github.com/cailloumajor/centrifugo-change-stream/commit/e90d8e273a5358be1f05eb77a953b0b0ba4829e3))
+* **deps:** update rust docker tag to v1.67.1 ([01b0863](https://github.com/cailloumajor/centrifugo-change-stream/commit/01b0863f1ac6f7b76891c9c397279cfe48a83d8b))
+* **deps:** update tonistiigi/xx docker tag to v1.2.1 ([6cada0a](https://github.com/cailloumajor/centrifugo-change-stream/commit/6cada0ab5081c46bba543f27fdd79b9feb4575f4))
+* exit with failure when change stream breaks ([2621122](https://github.com/cailloumajor/centrifugo-change-stream/commit/26211227ee6d1b79b7522b7f60b9e7bec2c5ec61))
+* use async main function ([bc9f0ff](https://github.com/cailloumajor/centrifugo-change-stream/commit/bc9f0ffc81bbdb7f70866f1a23045db95b96e6d5))
+
 ## [3.0.1](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.0.0...v3.0.1) (2023-02-06)
 
 
