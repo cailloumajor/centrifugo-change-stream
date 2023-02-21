@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.0...v3.1.1) (2023-02-21)
+
+
+### Bug Fixes
+
+* fetch crates before build targets separation ([7b5a8dd](https://github.com/cailloumajor/centrifugo-change-stream/commit/7b5a8ddafe15d76d45ef3753c54ef0678eba5451))
+
 ## [3.1.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.0.1...v3.1.0) (2023-02-21)
 
 
