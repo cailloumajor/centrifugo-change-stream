@@ -1,22 +1,21 @@
-use actix::{Actor, Arbiter, StreamHandler, System};
-use anyhow::{ensure, Context, Result};
+use std::sync::Arc;
+
+use anyhow::Context as _;
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, LogLevel, Verbosity};
-use futures_util::{stream, stream::AbortHandle, StreamExt};
-use signal_hook::{consts::TERM_SIGNALS, low_level::signal_name};
+use futures_util::stream::AbortHandle;
+use futures_util::StreamExt;
+use signal_hook::consts::TERM_SIGNALS;
+use signal_hook::low_level::signal_name;
 use signal_hook_tokio::Signals;
-use tokio::sync::mpsc::{self, Receiver};
 use tracing::{info, info_span, instrument, Instrument};
 use tracing_log::LogTracer;
-use trillium_tokio::tokio_stream::wrappers::ReceiverStream;
 use trillium_tokio::Stopper;
 
 use centrifugo_change_stream::CommonArgs;
 
 mod centrifugo;
 mod db;
-mod errors;
-mod health;
 mod http_api;
 mod model;
 
@@ -51,23 +50,19 @@ where
 }
 
 #[instrument(skip_all)]
-async fn handle_terminate(
-    signals: Signals,
-    receiver: Receiver<&'static str>,
-    abort_handle: AbortHandle,
-    stopper: Stopper,
-) {
-    let signals_stream = signals.map(|signal| signal_name(signal).unwrap_or("unknown"));
-    let receiver_stream = ReceiverStream::new(receiver);
-    let mut events_stream = stream::select(signals_stream, receiver_stream);
-    while let Some(event) = events_stream.next().await {
-        info!(event, msg = "received termination event");
+async fn handle_signals(signals: Signals, abort_handle: AbortHandle, stopper: Stopper) {
+    let mut signals_stream = signals.map(|signal| signal_name(signal).unwrap_or("unknown"));
+    info!(status = "started");
+    while let Some(signal) = signals_stream.next().await {
+        info!(msg = "received signal", reaction = "shutting down", signal);
         abort_handle.abort();
         stopper.stop();
     }
+    info!(status = "terminating");
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
@@ -76,79 +71,55 @@ fn main() -> Result<()> {
 
     LogTracer::init_with_filter(args.verbose.log_level_filter())?;
 
-    let (term_sender, term_receiver) = mpsc::channel(1);
-
-    let system = System::new();
-
-    let centrifugo_addr = system.block_on(async {
-        let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
-        centrifugo::CentrifugoActor {
-            client: centrifugo_client,
-        }
-        .start()
-    });
-
     let (abort_handle, abort_reg) = AbortHandle::new_pair();
-    let database_addr = system.block_on(async {
-        let collection = db::create_collection(&args.mongodb).await?;
-        let change_stream =
-            db::create_change_stream(&collection, abort_reg, term_sender.clone()).await?;
-        Ok::<_, anyhow::Error>(db::DatabaseActor::create(|ctx| {
-            db::DatabaseActor::add_stream(change_stream, ctx);
-            db::DatabaseActor {
-                collection,
-                tags_update_recipient: centrifugo_addr.clone().recipient(),
-            }
-        }))
-    })?;
+    let api_stopper = Stopper::new();
 
-    let health_addr = system.block_on(async {
-        let addr = health::HealthService::start_default();
-        addr.send(health::Subscribe::new(
-            "Centrifugo",
-            centrifugo_addr.clone().recipient(),
-        ))
-        .await
-        .context("failed to subscribe Centrifugo actor for health")?;
-        addr.send(health::Subscribe::new(
-            "database",
-            database_addr.clone().recipient(),
-        ))
-        .await
-        .context("failed to subscribe database actor for health")?;
-        Ok::<_, anyhow::Error>(addr)
-    })?;
-
-    let trillium_stopper = Stopper::new();
-
-    let signals = system
-        .block_on(async { Signals::new(TERM_SIGNALS) })
-        .context("error registering termination signals")?;
+    let signals = Signals::new(TERM_SIGNALS).context("error registering termination signals")?;
     let signals_handle = signals.handle();
-    let sent = Arbiter::current().spawn(handle_terminate(
-        signals,
-        term_receiver,
-        abort_handle,
-        trillium_stopper.clone(),
-    ));
-    ensure!(sent, "error spawning signals handler");
+    let signals_task = tokio::spawn(handle_signals(signals, abort_handle, api_stopper.clone()));
 
-    let handler = http_api::handler(health_addr.recipient(), database_addr.recipient());
-    system.block_on(
-        async move {
-            info!(addr = %args.common.listen_address, msg="start listening");
-            trillium_tokio::config()
-                .with_host(&args.common.listen_address.ip().to_string())
-                .with_port(args.common.listen_address.port())
-                .without_signals()
-                .with_stopper(trillium_stopper)
-                .run_async(handler)
-                .await;
-        }
-        .instrument(info_span!("http_server_task")),
+    let centrifugo_client = Arc::new(centrifugo::Client::new(&args.centrifugo));
+    let (centrifugo_requests_tx, centrifugo_client_task) = centrifugo_client.handle_requests();
+
+    let mongodb_collection = db::create_collection(&args.mongodb).await?;
+    let change_stream_task = mongodb_collection
+        .handle_change_stream(
+            centrifugo_requests_tx.clone(),
+            abort_reg,
+            api_stopper.clone(),
+        )
+        .await?;
+    let (current_data_tx, current_data_task) = mongodb_collection.handle_current_data();
+
+    let api_handler = http_api::handler(
+        mongodb_collection.namespace(),
+        centrifugo_requests_tx,
+        current_data_tx,
     );
+    async move {
+        info!(addr = %args.common.listen_address, msg="start listening");
+        trillium_tokio::config()
+            .with_host(&args.common.listen_address.ip().to_string())
+            .with_port(args.common.listen_address.port())
+            .without_signals()
+            .with_stopper(api_stopper)
+            .run_async(api_handler)
+            .await;
+        info!(status = "terminating");
+    }
+    .instrument(info_span!("http_server_task"))
+    .await;
 
     signals_handle.close();
+
+    let (change_stream_task_result, ..) = tokio::try_join!(
+        change_stream_task,
+        signals_task,
+        centrifugo_client_task,
+        current_data_task
+    )
+    .context("error joining tasks")?;
+    change_stream_task_result?;
 
     Ok(())
 }
