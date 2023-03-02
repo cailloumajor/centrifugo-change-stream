@@ -6,7 +6,6 @@ use serde_json::json;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
-use trillium_client::Conn;
 use trillium_tokio::TcpConnector;
 use url::Url;
 
@@ -43,19 +42,13 @@ pub(crate) struct Client {
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
         let http = HttpClient::new().with_default_pool();
-        let auth_header = String::from("apikey ") + config.centrifugo_api_key.as_str();
+        let auth_header = format!("apikey {}", config.centrifugo_api_key);
 
         Self {
-            api_url: config.centrifugo_api_url.to_owned(),
+            api_url: config.centrifugo_api_url.clone(),
             auth_header,
             http,
         }
-    }
-
-    fn conn(&self) -> Conn<TcpConnector> {
-        self.http
-            .build_conn("POST", self.api_url.to_owned())
-            .with_header("Authorization", self.auth_header.to_owned())
     }
 
     #[instrument(name = "centrifugo_publish", skip_all)]
@@ -70,7 +63,9 @@ impl Client {
         debug!(%json);
 
         let mut conn = match self
-            .conn()
+            .http
+            .post(self.api_url.clone())
+            .with_header("Authorization", self.auth_header.clone())
             .with_json_body(&json)
             .expect("serialization error")
             .await
@@ -142,29 +137,7 @@ mod tests {
     use super::*;
 
     mod client {
-        use trillium_testing::Method;
-
         use super::*;
-
-        #[test]
-        fn conn() {
-            let config = Config {
-                centrifugo_api_url: "http://example.com/test".parse().unwrap(),
-                centrifugo_api_key: String::from("secretapikey"),
-            };
-            let client = Client::new(&config);
-            let mut conn = client.conn();
-
-            assert_eq!(conn.method(), Method::Post);
-            assert_eq!(conn.url().as_str(), "http://example.com/test");
-            let auth_header_value = conn
-                .request_headers()
-                .get_values("Authorization")
-                .unwrap()
-                .one()
-                .unwrap();
-            assert_eq!(auth_header_value, "apikey secretapikey");
-        }
 
         mod publish {
             use trillium_testing::prelude::Conn;
