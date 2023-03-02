@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.1.2](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.1...v3.1.2) (2023-03-02)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap to 4.1.7 ([3210900](https://github.com/cailloumajor/centrifugo-change-stream/commit/3210900760cdca55274e101dea9f5da1f0dcd957))
+* **deps:** update rust crate clap to 4.1.8 ([aa9f9a7](https://github.com/cailloumajor/centrifugo-change-stream/commit/aa9f9a77ddc51d7c75647b3e1967a0913d606bd6))
+* **deps:** update rust crate mongodb to 2.4.0 ([903692d](https://github.com/cailloumajor/centrifugo-change-stream/commit/903692d4a247989b3704ff2775d9abbf51649540))
+* **deps:** update rust crate tokio to 1.26.0 ([f249e96](https://github.com/cailloumajor/centrifugo-change-stream/commit/f249e960039a968bc7574f7ad56a3473f3114dcc))
+* **deps:** update rust crate trillium to 0.2.4 ([ce91a25](https://github.com/cailloumajor/centrifugo-change-stream/commit/ce91a25bf36ab1ce396b3bced4e26ce55066bde9))
+* simplify client code ([f110422](https://github.com/cailloumajor/centrifugo-change-stream/commit/f11042280cc3faab46716b1305b11d8d91cf518e))
+
 ## [3.1.1](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.0...v3.1.1) (2023-02-21)
 
 
