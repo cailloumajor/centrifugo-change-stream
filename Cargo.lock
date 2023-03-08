@@ -75,9 +75,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.64"
+version = "0.1.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cd7fce9ba8c3c042128ce72d8b2ddbf3a05747efb67ea0313c635e10bda47a2"
+checksum = "b84f9ebcc6c1f5b8cb160f6990096a5c127f423fcb6e1ccc46c370cbdfb75dfc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1753,9 +1753,9 @@ dependencies = [
 
 [[package]]
 name = "trillium"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45a869ef9c63046969dec6926bc909ab4ca573f1f94beb33f906aba5d16cb01a"
+checksum = "41539c25f005d069fc0a4b42ae59128757d41d83a817b53cf7fbdb0aee100471"
 dependencies = [
  "async-trait",
  "futures-lite",
