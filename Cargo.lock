@@ -1194,9 +1194,9 @@ dependencies = [
 
 [[package]]
 name = "routefinder"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54e6ab7fb7d4627afa0d64a31cdf9545a23906a6f107bd7c9a6e4ec8fb952ea5"
+checksum = "94f8f99b10dedd317514253dda1fa7c14e344aac96e1f78149a64879ce282aca"
 dependencies = [
  "smartcow",
  "smartstring",
@@ -1821,9 +1821,9 @@ dependencies = [
 
 [[package]]
 name = "trillium-router"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9e62e1513b788dc2a35dd91d44b04d4735205ad36e825b1fb608b88b7a7b4ff"
+checksum = "83c99c71c690a3cb8b54fda9f784d89c773e60b853190a7672e73fa590beabe7"
 dependencies = [
  "log",
  "routefinder",
