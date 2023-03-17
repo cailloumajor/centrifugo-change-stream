@@ -40,4 +40,4 @@ features = [ "smallvec", "fmt", "ansi" ]
 
 [dev-dependencies]
 trillium-http = "0.2.11"
-trillium-testing = { version = "0.4.0", features = [ "tokio" ] }
+trillium-testing = { version = "0.4.1", features = [ "tokio" ] }
