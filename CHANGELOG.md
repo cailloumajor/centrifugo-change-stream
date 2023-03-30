@@ -1,5 +1,42 @@
 # Changelog
 
+## [3.1.3](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.2...v3.1.3) (2023-03-30)
+
+
+### Bug Fixes
+
+* **deps:** update dependency ws to 8.13 ([6ee47bb](https://github.com/cailloumajor/centrifugo-change-stream/commit/6ee47bb8859a360efd0fadb4f9ac264684e7b98f))
+* **deps:** update rust crate anyhow to 1.0.70 ([e6d232d](https://github.com/cailloumajor/centrifugo-change-stream/commit/e6d232dc97ed52d558a46691f9b480f13c63dba0))
+* **deps:** update rust crate clap to 4.1.10 ([5d1d81c](https://github.com/cailloumajor/centrifugo-change-stream/commit/5d1d81c4af254d3ecfeeb11889f6570261b474fc))
+* **deps:** update rust crate clap to 4.1.11 ([938f79b](https://github.com/cailloumajor/centrifugo-change-stream/commit/938f79b53cda0b5bffcc2365cee3ba270c7ae0b9))
+* **deps:** update rust crate clap to 4.1.12 ([7aa7f50](https://github.com/cailloumajor/centrifugo-change-stream/commit/7aa7f50b5d10233440cef9353ede6ac3ab1d94a5))
+* **deps:** update rust crate clap to 4.1.13 ([0f6f42a](https://github.com/cailloumajor/centrifugo-change-stream/commit/0f6f42ad5fa5756a397c64a757573f282cb5ca9e))
+* **deps:** update rust crate clap to 4.1.9 ([377c48b](https://github.com/cailloumajor/centrifugo-change-stream/commit/377c48bbab69af95a09666a6eaebb8676ad46db8))
+* **deps:** update rust crate clap to 4.2.0 ([32e96a1](https://github.com/cailloumajor/centrifugo-change-stream/commit/32e96a12498976e732a8a2fa0393ffdecdcd4843))
+* **deps:** update rust crate clap to 4.2.1 ([6f4b48e](https://github.com/cailloumajor/centrifugo-change-stream/commit/6f4b48e998493f348b48e171308990edf79c1263))
+* **deps:** update rust crate futures-util to 0.3.27 ([dff8cbf](https://github.com/cailloumajor/centrifugo-change-stream/commit/dff8cbf86367426b037b8510517b9b1889b9f929))
+* **deps:** update rust crate serde to 1.0.153 ([d50af88](https://github.com/cailloumajor/centrifugo-change-stream/commit/d50af88de1acfd4b19b44d1620a7773492053ffe))
+* **deps:** update rust crate serde to 1.0.154 ([6f776ed](https://github.com/cailloumajor/centrifugo-change-stream/commit/6f776ed14b1568a5b14d29fd60c5124413184e68))
+* **deps:** update rust crate serde to 1.0.155 ([de5acca](https://github.com/cailloumajor/centrifugo-change-stream/commit/de5acca2aa4f775580b3cea77aeadfb3a1855b1d))
+* **deps:** update rust crate serde to 1.0.156 ([d7e9e26](https://github.com/cailloumajor/centrifugo-change-stream/commit/d7e9e26db08f9cd7e7143d8dc0ee1f1e75a782b4))
+* **deps:** update rust crate serde to 1.0.157 ([70bb291](https://github.com/cailloumajor/centrifugo-change-stream/commit/70bb291c1c35595ed90eff3eb5f876ee7b066e15))
+* **deps:** update rust crate serde to 1.0.158 ([a581ef9](https://github.com/cailloumajor/centrifugo-change-stream/commit/a581ef936d71b4d8d52fa4af72d2a134ddf0da64))
+* **deps:** update rust crate serde to 1.0.159 ([4557462](https://github.com/cailloumajor/centrifugo-change-stream/commit/4557462484a82d3e12674404159a060536a24f46))
+* **deps:** update rust crate serde_json to 1.0.94 ([fd2ee97](https://github.com/cailloumajor/centrifugo-change-stream/commit/fd2ee9706de4f3ca51b35f592a3eefb9f0c99d2f))
+* **deps:** update rust crate serde_json to 1.0.95 ([aad5254](https://github.com/cailloumajor/centrifugo-change-stream/commit/aad52546df6a8c928d5c90bfdc93ec480519863f))
+* **deps:** update rust crate tokio to 1.27.0 ([1aa8a1a](https://github.com/cailloumajor/centrifugo-change-stream/commit/1aa8a1ad43628cc6b6f1a41a406fb5b4fb40bccb))
+* **deps:** update rust crate trillium to 0.2.5 ([2444f47](https://github.com/cailloumajor/centrifugo-change-stream/commit/2444f4741c6ceff89498fe7470a27b9d334c1c24))
+* **deps:** update rust crate trillium to 0.2.6 ([1329461](https://github.com/cailloumajor/centrifugo-change-stream/commit/1329461a3a003eee42ec37ff93c02aa18657c254))
+* **deps:** update rust crate trillium to 0.2.7 ([3eafe44](https://github.com/cailloumajor/centrifugo-change-stream/commit/3eafe4478f1f57d8f122f114ff17b43d63045a1b))
+* **deps:** update rust crate trillium to 0.2.8 ([48fe7cf](https://github.com/cailloumajor/centrifugo-change-stream/commit/48fe7cf34c31f22f8e3cc4ed8ab96a5dfb9e91de))
+* **deps:** update rust crate trillium-client to 0.3.1 ([3d1ba4a](https://github.com/cailloumajor/centrifugo-change-stream/commit/3d1ba4aae15c0880b2c9f2c7ce7cd0db7915d0e3))
+* **deps:** update rust crate trillium-router to 0.3.4 ([f114332](https://github.com/cailloumajor/centrifugo-change-stream/commit/f11433279475029a98911ea7dbfb811e1eecc27b))
+* **deps:** update rust crate trillium-router to 0.3.5 ([0e3409b](https://github.com/cailloumajor/centrifugo-change-stream/commit/0e3409b22ae12f7091fc3544ae6bb81d4eb22db7))
+* **deps:** update rust docker tag to v1.68.0 ([2eeb441](https://github.com/cailloumajor/centrifugo-change-stream/commit/2eeb441b1e340c8ce9aeae32b52f5ca436c4caf5))
+* **deps:** update rust docker tag to v1.68.1 ([094f15e](https://github.com/cailloumajor/centrifugo-change-stream/commit/094f15e29beb5f21169e1c944cebbe9951eb2f34))
+* **deps:** update rust docker tag to v1.68.2 ([b78af96](https://github.com/cailloumajor/centrifugo-change-stream/commit/b78af96aa2b3bfd8d9f2629d5470549db436e2e1))
+* update routefinder transitive dependency ([32a8789](https://github.com/cailloumajor/centrifugo-change-stream/commit/32a87893e3d7e5bc325d3e0d93177178b4c6005b))
+
 ## [3.1.2](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.1...v3.1.2) (2023-03-02)
 
 
