@@ -194,7 +194,6 @@ dependencies = [
  "trillium",
  "trillium-api",
  "trillium-client",
- "trillium-http",
  "trillium-router",
  "trillium-testing",
  "trillium-tokio",

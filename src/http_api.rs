@@ -149,39 +149,14 @@ async fn centrifugo_subscribe_handler(conn: Conn, req: SubscribeRequest) -> Conn
 
 #[cfg(test)]
 mod tests {
-    use trillium_http::{Conn as HttpConn, Synthetic};
     use trillium_testing::prelude::*;
 
     use super::*;
 
-    async fn handle(
-        method: Method,
-        path: &str,
-        body: impl Into<Synthetic>,
-        handler: &impl trillium::Handler,
-    ) -> Conn {
-        let http_conn = HttpConn::new_synthetic(method, path, body);
-        let conn = handler.run(http_conn.into()).await;
-        let mut conn = handler.before_send(conn).await;
-        conn.inner_mut().finalize_headers();
-        conn
-    }
-
-    async fn body_string(conn: &mut Conn) -> String {
-        let body_bytes = conn
-            .take_response_body()
-            .expect("missing body")
-            .into_bytes()
-            .await
-            .expect("error consuming body")
-            .to_vec();
-        String::from_utf8(body_bytes).expect("error converting body bytes")
-    }
-
     mod health_handler {
         use super::*;
 
-        async fn test_handler(
+        fn test_handler(
             centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
         ) -> impl trillium::Handler {
             let namespace_prefix = Arc::new(String::from(""));
@@ -199,9 +174,9 @@ mod tests {
         #[tokio::test]
         async fn request_sending_error() {
             let (tx, _) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
 
-            let resp = handle(Method::Get, "/", (), &handler).await;
+            let resp = get("/").run_async(&handler).await;
 
             assert_status!(resp, 500);
         }
@@ -209,7 +184,7 @@ mod tests {
         #[tokio::test]
         async fn outcome_channel_receiving_error() {
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             tokio::spawn(async move {
                 let CentrifugoClientRequest::Health(response) = rx.recv().await.unwrap() else {
                     panic!("wrong request");
@@ -217,7 +192,7 @@ mod tests {
                 drop(response);
             });
 
-            let resp = handle(Method::Get, "/", (), &handler).await;
+            let resp = get("/").run_async(&handler).await;
 
             assert_status!(resp, 500);
         }
@@ -225,7 +200,7 @@ mod tests {
         #[tokio::test]
         async fn health_error() {
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             tokio::spawn(async move {
                 let CentrifugoClientRequest::Health(response) = rx.recv().await.unwrap() else {
                     panic!("wrong request");
@@ -233,7 +208,7 @@ mod tests {
                 response.send(false).unwrap();
             });
 
-            let resp = handle(Method::Get, "/", (), &handler).await;
+            let resp = get("/").run_async(&handler).await;
 
             assert_status!(resp, 500);
         }
@@ -241,7 +216,7 @@ mod tests {
         #[tokio::test]
         async fn success() {
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             tokio::spawn(async move {
                 let CentrifugoClientRequest::Health(response) = rx.recv().await.unwrap() else {
                     panic!("wrong request");
@@ -249,7 +224,7 @@ mod tests {
                 response.send(true).unwrap();
             });
 
-            let resp = handle(Method::Get, "/", (), &handler).await;
+            let resp = get("/").run_async(&handler).await;
 
             assert_status!(resp, 204);
         }
@@ -262,7 +237,7 @@ mod tests {
 
         use super::*;
 
-        async fn test_handler(
+        fn test_handler(
             current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
         ) -> impl trillium::Handler {
             let namespace_prefix = Arc::new(String::from("ns:"));
@@ -314,26 +289,26 @@ mod tests {
         #[tokio::test]
         async fn bad_channel_namespace() {
             let (tx, _) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             let body = r#"{"protocol":"json","encoding":"json","channel":"chan"}"#;
 
-            let mut resp = handle(Method::Get, "/", body, &handler).await;
+            let mut resp = get("/").with_request_body(body).run_async(&handler).await;
 
-            assert_status!(resp, 200);
-            assert_eq!(
-                body_string(&mut resp).await,
-                r#"{"error":{"code":1002,"message":"bad channel namespace"}}"#
+            assert_response!(
+                &mut resp,
+                Status::Ok,
+                r#"{"error":{"code":1002,"message":"bad channel namespace"}}"#,
+                "content-type" => "application/json",
             );
-            assert_headers!(resp, "content-type" => "application/json");
         }
 
         #[tokio::test]
         async fn request_sending_error() {
             let (tx, _) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
 
-            let resp = handle(Method::Get, "/", body, &handler).await;
+            let resp = get("/").with_request_body(body).run_async(&handler).await;
 
             assert_status!(resp, 500);
         }
@@ -341,14 +316,14 @@ mod tests {
         #[tokio::test]
         async fn outcome_channel_receiving_error() {
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
             tokio::spawn(async move {
                 let (_, response) = rx.recv().await.unwrap();
                 drop(response);
             });
 
-            let resp = handle(Method::Get, "/", body, &handler).await;
+            let resp = get("/").with_request_body(body).run_async(&handler).await;
 
             assert_status!(resp, 500);
         }
@@ -356,38 +331,41 @@ mod tests {
         #[tokio::test]
         async fn current_data_error() {
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
             tokio::spawn(async move {
                 let (_, response) = rx.recv().await.unwrap();
                 response.send(Err(())).unwrap();
             });
 
-            let mut resp = handle(Method::Get, "/", body, &handler).await;
+            let mut resp = get("/").with_request_body(body).run_async(&handler).await;
 
-            assert_status!(resp, 200);
-            assert_eq!(
-                body_string(&mut resp).await,
-                r#"{"error":{"code":1003,"message":"internal error"}}"#
+            assert_response!(
+                &mut resp,
+                Status::Ok,
+                r#"{"error":{"code":1003,"message":"internal error"}}"#,
+                "content-type" => "application/json",
             );
-            assert_headers!(resp, "content-type" => "application/json");
         }
 
         #[tokio::test]
         async fn success_no_data() {
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
             tokio::spawn(async move {
                 let (_, response) = rx.recv().await.unwrap();
                 response.send(Ok(None)).unwrap();
             });
 
-            let mut resp = handle(Method::Get, "/", body, &handler).await;
+            let mut resp = get("/").with_request_body(body).run_async(&handler).await;
 
-            assert_status!(resp, 200);
-            assert_eq!(body_string(&mut resp).await, r#"{"result":{"data":{}}}"#);
-            assert_headers!(resp, "content-type" => "application/json");
+            assert_response!(
+                &mut resp,
+                Status::Ok,
+                r#"{"result":{"data":{}}}"#,
+                "content-type" => "application/json",
+            );
         }
 
         #[tokio::test]
@@ -400,17 +378,17 @@ mod tests {
             tags_update_data
                 .insert_timestamp("two".to_string(), DateTime::from_millis(471411000000));
             let (tx, mut rx) = mpsc::channel(1);
-            let handler = test_handler(tx).await;
+            let handler = test_handler(tx);
             let body = r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#;
             tokio::spawn(async move {
                 let (_, response) = rx.recv().await.unwrap();
                 response.send(Ok(Some(tags_update_data))).unwrap();
             });
 
-            let mut resp = handle(Method::Get, "/", body, &handler).await;
+            let mut resp = get("/").with_request_body(body).run_async(&handler).await;
+            let body = resp.take_response_body_string().unwrap();
 
-            assert_status!(resp, 200);
-            let body = body_string(&mut resp).await;
+            assert_status!(resp, Status::Ok);
             assert!(body.starts_with(r#"{"result":{"data":{"#));
             assert!(body.contains(r#""first":9"#));
             assert!(body.contains(r#""second":"other""#));

@@ -39,5 +39,4 @@ default-features = false
 features = [ "smallvec", "fmt", "ansi" ]
 
 [dev-dependencies]
-trillium-http = "0.2.13"
 trillium-testing = { version = "0.4.2", features = [ "tokio" ] }
