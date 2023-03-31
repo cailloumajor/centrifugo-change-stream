@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use clap::Parser;
-use clap_verbosity_flag::{InfoLevel, LogLevel, Verbosity};
+use clap_verbosity_flag::{InfoLevel, Verbosity};
 use futures_util::stream::AbortHandle;
 use futures_util::StreamExt;
+use level_filter::VerbosityLevelFilter;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::low_level::signal_name;
 use signal_hook_tokio::Signals;
@@ -17,6 +18,7 @@ use centrifugo_change_stream::CommonArgs;
 mod centrifugo;
 mod db;
 mod http_api;
+mod level_filter;
 mod model;
 
 #[derive(Parser)]
@@ -32,21 +34,6 @@ struct Args {
 
     #[command(flatten)]
     verbose: Verbosity<InfoLevel>,
-}
-
-fn filter_from_verbosity<T>(verbosity: &Verbosity<T>) -> tracing::level_filters::LevelFilter
-where
-    T: LogLevel,
-{
-    use tracing_log::log::LevelFilter;
-    match verbosity.log_level_filter() {
-        LevelFilter::Off => tracing::level_filters::LevelFilter::OFF,
-        LevelFilter::Error => tracing::level_filters::LevelFilter::ERROR,
-        LevelFilter::Warn => tracing::level_filters::LevelFilter::WARN,
-        LevelFilter::Info => tracing::level_filters::LevelFilter::INFO,
-        LevelFilter::Debug => tracing::level_filters::LevelFilter::DEBUG,
-        LevelFilter::Trace => tracing::level_filters::LevelFilter::TRACE,
-    }
 }
 
 #[instrument(skip_all)]
@@ -66,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
-        .with_max_level(filter_from_verbosity(&args.verbose))
+        .with_max_level(VerbosityLevelFilter(args.verbose.clone()))
         .init();
 
     LogTracer::init_with_filter(args.verbose.log_level_filter())?;
