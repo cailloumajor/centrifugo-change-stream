@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.4](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.3...v3.1.4) (2023-03-31)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate futures-util to 0.3.28 ([653bccc](https://github.com/cailloumajor/centrifugo-change-stream/commit/653bcccc7b9661b92c77aa34ae6a1bcc24be4b44))
+
 ## [3.1.3](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.2...v3.1.3) (2023-03-30)
 
 
