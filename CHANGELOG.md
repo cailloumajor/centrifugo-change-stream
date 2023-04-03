@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.1.5](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.4...v3.1.5) (2023-04-03)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap-verbosity-flag to 2.0.1 ([b02303e](https://github.com/cailloumajor/centrifugo-change-stream/commit/b02303e3e5015af71ab33fc0ee25f3a728b49ac2))
+* reduce VerbosityLevelFilter footprint ([e162431](https://github.com/cailloumajor/centrifugo-change-stream/commit/e16243139b337dc6dbe388a583e82137a9ec8ea7))
+
 ## [3.1.4](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.3...v3.1.4) (2023-03-31)
 
 
