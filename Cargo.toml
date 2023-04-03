@@ -36,7 +36,7 @@ features = [ "std", "log-tracer" ]
 [dependencies.tracing-subscriber]
 version = "0.3.16"
 default-features = false
-features = [ "smallvec", "fmt", "ansi" ]
+features = [ "ansi", "fmt", "parking_lot", "smallvec", "std" ]
 
 [dev-dependencies]
 trillium-testing = { version = "0.4.2", features = [ "tokio" ] }

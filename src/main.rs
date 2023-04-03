@@ -5,7 +5,6 @@ use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, Verbosity};
 use futures_util::stream::AbortHandle;
 use futures_util::StreamExt;
-use level_filter::VerbosityLevelFilter;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::low_level::signal_name;
 use signal_hook_tokio::Signals;
@@ -20,6 +19,8 @@ mod db;
 mod http_api;
 mod level_filter;
 mod model;
+
+use level_filter::VerbosityLevelFilter;
 
 #[derive(Parser)]
 struct Args {
@@ -53,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
-        .with_max_level(VerbosityLevelFilter(args.verbose.clone()))
+        .with_max_level(VerbosityLevelFilter::from(&args.verbose))
         .init();
 
     LogTracer::init_with_filter(args.verbose.log_level_filter())?;

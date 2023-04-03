@@ -1,13 +1,21 @@
-use clap_verbosity_flag::{LevelFilter, LogLevel, Verbosity};
+use clap_verbosity_flag::{LogLevel, Verbosity};
+use tracing::level_filters::LevelFilter;
 
-pub(crate) struct VerbosityLevelFilter<T: LogLevel>(pub(crate) Verbosity<T>);
+pub(crate) struct VerbosityLevelFilter(tracing_log::log::LevelFilter);
 
-impl<T> From<VerbosityLevelFilter<T>> for tracing::level_filters::LevelFilter
+impl<T> From<&Verbosity<T>> for VerbosityLevelFilter
 where
     T: LogLevel,
 {
-    fn from(value: VerbosityLevelFilter<T>) -> Self {
-        match value.0.log_level_filter() {
+    fn from(value: &Verbosity<T>) -> Self {
+        Self(value.log_level_filter())
+    }
+}
+
+impl From<VerbosityLevelFilter> for LevelFilter {
+    fn from(value: VerbosityLevelFilter) -> Self {
+        use tracing_log::log::LevelFilter;
+        match value.0 {
             LevelFilter::Off => Self::OFF,
             LevelFilter::Error => Self::ERROR,
             LevelFilter::Warn => Self::WARN,
