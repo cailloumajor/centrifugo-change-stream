@@ -1,11 +1,9 @@
 use anyhow::{anyhow, Context as _};
 use clap::Parser;
-use trillium_client::Conn;
-use trillium_tokio::TcpConnector;
+use trillium_client::Client;
+use trillium_tokio::ClientConfig;
 
 use centrifugo_change_stream::CommonArgs;
-
-type ClientConn = Conn<'static, TcpConnector>;
 
 #[derive(Parser)]
 struct Args {
@@ -22,7 +20,8 @@ async fn main() -> anyhow::Result<()> {
         args.common.listen_address.port()
     );
 
-    let mut resp = ClientConn::get(url.as_str()).await?;
+    let client = Client::new(ClientConfig::default());
+    let mut resp = client.get(url.as_str()).await?;
 
     let status = resp.status().context("missing status code")?;
 
