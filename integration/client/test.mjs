@@ -1,6 +1,6 @@
+import assert from "node:assert";
 import { basename } from "node:path";
 import { argv } from "node:process";
-import { format } from "node:util";
 
 import { Centrifuge } from "centrifuge";
 import WebSocket from "ws";
@@ -8,27 +8,18 @@ import WebSocket from "ws";
 const inRange = (n, min, max) => n >= min && n <= max;
 const validDate = (ts) => !isNaN(Date.parse(ts));
 
-const checkData = (data, context) => {
-    const errorMessage = (member) =>
-        format(
-            "testing %s failed for %O member, element: %s",
-            context,
-            data,
-            member
-        );
+const checkData = (data) => {
+    assert.ok(data.val?.integer != null);
+    assert.ok(inRange(data.val.integer, 150, 250));
 
-    if (data.val?.integer && !inRange(data.val.integer, 150, 250)) {
-        throw new Error(errorMessage("integer"));
-    }
-    if (data.val?.float && !inRange(data.val.float, 32.0, 42.0)) {
-        throw new Error(errorMessage("float"));
-    }
-    if (data.ts?.first && !validDate(data.ts.first)) {
-        throw new Error(errorMessage("ts.first"));
-    }
-    if (data.ts?.second && !validDate(data.ts.second)) {
-        throw new Error(errorMessage("ts.second"));
-    }
+    assert.ok(data.val?.float != null);
+    assert.ok(inRange(data.val.float, 32.0, 42.0));
+
+    assert.ok(data.ts?.first != null);
+    assert.ok(validDate(data.ts.first));
+
+    assert.ok(data.ts?.second != null);
+    assert.ok(validDate(data.ts.second));
 };
 
 let noDataSubscribed = false;
@@ -48,9 +39,9 @@ noDataSub.on("subscribed", ({ channel, data }) => {
         data
     );
     noDataSubscribed = true;
-    if (Object.keys(data).length !== 0 || data.constructor !== Object) {
-        throw new Error("no-data channel: expected empty data object");
-    }
+    console.log("testing no-data channel data object");
+    assert.strictEqual(Object.keys(data).length, 0);
+    assert.strictEqual(data.constructor, Object);
 });
 
 noDataSub.on("publication", () => {
@@ -67,15 +58,8 @@ sub.on("subscribed", ({ channel, data }) => {
         channel,
         data
     );
-    if (
-        !data.val?.integer ||
-        !data.val?.float ||
-        !data.ts?.first ||
-        !data.ts?.second
-    ) {
-        throw new Error("missing data property(ies) in initial data");
-    }
-    checkData(data, "subscribe proxy");
+    console.log("testing data object validity from subscribe proxy");
+    checkData(data);
 });
 
 sub.on("publication", ({ data }) => {
@@ -118,10 +102,11 @@ await new Promise((resolve) => {
 centrifuge.disconnect();
 clearTimeout(publicationsTimeout);
 
-if (!noDataSubscribed) {
-    throw new Error("no-data channel has not been subscribed");
-}
+assert.ok(noDataSubscribed, "no-data channel has not been subscribed");
 
-publications.forEach((publication) => checkData(publication, "publication"));
+publications.forEach((publication) => {
+    console.log("testing data object validity from received publication");
+    checkData(publication);
+});
 
 console.log("%s: success", basename(argv[1]));
