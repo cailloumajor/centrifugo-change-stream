@@ -6,12 +6,11 @@ use serde_json::json;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
-use trillium_tokio::TcpConnector;
+use trillium_client::Client as HttpClient;
+use trillium_tokio::ClientConfig;
 use url::Url;
 
 use crate::model::CentrifugoClientRequest;
-
-type HttpClient = trillium_client::Client<TcpConnector>;
 
 #[derive(Args)]
 #[group(skip)]
@@ -41,7 +40,7 @@ pub(crate) struct Client {
 
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
-        let http = HttpClient::new().with_default_pool();
+        let http = HttpClient::new(ClientConfig::default()).with_default_pool();
         let auth_header = format!("apikey {}", config.centrifugo_api_key);
 
         Self {
