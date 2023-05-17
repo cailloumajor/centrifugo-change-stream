@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.0...v3.2.1) (2023-05-17)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate reqwest to 0.11.18 ([04469d8](https://github.com/cailloumajor/centrifugo-change-stream/commit/04469d8fbccc939988509680f539fba264346106))
+
 ## [3.2.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.1.5...v3.2.0) (2023-05-17)
 
 
