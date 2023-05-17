@@ -76,6 +76,8 @@ Options:
           MongoDB database [env: MONGODB_DATABASE=]
       --mongodb-collection <MONGODB_COLLECTION>
           MongoDB collection [env: MONGODB_COLLECTION=]
+      --tags-update-buffer <TAGS_UPDATE_BUFFER>
+          Size of the tags update channel buffer [env: TAGS_UPDATE_BUFFER=] [default: 10]
   -v, --verbose...
           More output per occurrence
   -q, --quiet...

@@ -7,13 +7,14 @@ use futures_util::StreamExt;
 use mongodb::bson::{doc, Document};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection};
-use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
-use trillium_tokio::Stopper;
 
-use crate::model::{CentrifugoClientRequest, CurrentDataResponse, MongoDBData, UpdateEvent};
+use crate::model::{
+    CurrentDataChannel, CurrentDataResponse, MongoDBData, TagsUpdateChannel, UpdateEvent,
+};
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");
 
@@ -42,9 +43,9 @@ impl MongoDBCollection {
 
     pub(crate) async fn handle_change_stream(
         &self,
-        centrifugo_request: Sender<CentrifugoClientRequest>,
+        tags_update_channel: TagsUpdateChannel,
         abort_reg: AbortRegistration,
-        stopper: Stopper,
+        stopper: oneshot::Sender<()>,
     ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
         let pipeline = [doc! { "$match": { "operationType": "update" } }];
         let change_stream = self
@@ -63,12 +64,13 @@ impl MongoDBCollection {
                         Ok(event) => event,
                         Err(err) => {
                             error!(kind = "stream item error", %err);
-                            stopper.stop();
+                            if stopper.send(()).is_err() {
+                                error!(kind = "stop channel sending");
+                            }
                             return Err(anyhow!("broken change stream"));
                         }
                     };
-                    let request = CentrifugoClientRequest::TagsUpdate(event);
-                    if let Err(err) = centrifugo_request.try_send(request) {
+                    if let Err(err) = tags_update_channel.try_send(event) {
                         error!(kind = "request channel sending", %err);
                     }
                 }
@@ -82,12 +84,7 @@ impl MongoDBCollection {
         Ok(handle)
     }
 
-    pub(crate) fn handle_current_data(
-        &self,
-    ) -> (
-        mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
-        JoinHandle<()>,
-    ) {
+    pub(crate) fn handle_current_data(&self) -> (CurrentDataChannel, JoinHandle<()>) {
         let collection = self.0.clone_with_type::<MongoDBData>();
         let (tx, mut rx) = mpsc::channel::<(String, oneshot::Sender<CurrentDataResponse>)>(1);
 
