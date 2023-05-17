@@ -1,7 +1,5 @@
 use anyhow::{anyhow, Context as _};
 use clap::Parser;
-use trillium_client::Client;
-use trillium_tokio::ClientConfig;
 
 use centrifugo_change_stream::CommonArgs;
 
@@ -20,15 +18,12 @@ async fn main() -> anyhow::Result<()> {
         args.common.listen_address.port()
     );
 
-    let client = Client::new(ClientConfig::default());
-    let mut resp = client.get(url.as_str()).await?;
+    let resp = reqwest::get(url).await.context("request error")?;
 
-    let status = resp.status().context("missing status code")?;
-
-    if status.is_success() {
+    if resp.status().is_success() {
         Ok(())
     } else {
-        let body = resp.response_body().read_string().await?;
+        let body = resp.text().await.context("error getting response body")?;
         Err(anyhow!(body))
     }
 }

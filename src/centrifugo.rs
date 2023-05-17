@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
+use arcstr::ArcStr;
 use clap::Args;
+use reqwest::{header, Client as HttpClient};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
-use trillium_client::Client as HttpClient;
-use trillium_tokio::ClientConfig;
 use url::Url;
 
 use crate::model::CentrifugoClientRequest;
@@ -34,17 +32,18 @@ enum PublishResponse {
 #[derive(Clone)]
 pub(crate) struct Client {
     api_url: Url,
-    auth_header: String,
+    auth_header: ArcStr,
     http: HttpClient,
 }
 
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
-        let http = HttpClient::new(ClientConfig::default()).with_default_pool();
-        let auth_header = format!("apikey {}", config.centrifugo_api_key);
+        let api_url = config.centrifugo_api_url.clone();
+        let auth_header = ArcStr::from(format!("apikey {}", config.centrifugo_api_key));
+        let http = HttpClient::new();
 
         Self {
-            api_url: config.centrifugo_api_url.clone(),
+            api_url,
             auth_header,
             http,
         }
@@ -61,34 +60,26 @@ impl Client {
         });
         debug!(%json);
 
-        let mut conn = match self
+        let resp = self
             .http
-            .post(self.api_url.clone())
-            .with_header("Authorization", self.auth_header.clone())
-            .with_json_body(&json)
-            .expect("serialization error")
+            .post(Url::clone(&self.api_url))
+            .header(header::AUTHORIZATION, self.auth_header.as_str())
+            .json(&json)
+            .send()
             .await
-        {
-            Ok(conn) => conn,
-            Err(err) => {
+            .map_err(|err| {
                 error!(kind = "request sending", %err);
-                return Err(());
-            }
-        };
+            })?;
 
-        let status_code = conn.status().expect("missing status code");
+        let status_code = resp.status();
         if !status_code.is_success() {
             error!(kind = "bad status code", %status_code);
             return Err(());
         }
 
-        let response: PublishResponse = match conn.response_json().await {
-            Ok(response) => response,
-            Err(err) => {
-                error!(kind = "response deserialization", %err);
-                return Err(());
-            }
-        };
+        let response: PublishResponse = resp.json().await.map_err(|err| {
+            error!(kind = "response deserialization", %err);
+        })?;
 
         if let PublishResponse::Error { code, message } = response {
             error!(kind = "Centrifugo error", code, message);
@@ -99,9 +90,10 @@ impl Client {
     }
 
     pub(crate) fn handle_requests(
-        self: Arc<Self>,
+        &self,
     ) -> (mpsc::Sender<CentrifugoClientRequest>, JoinHandle<()>) {
         let (tx, mut rx) = mpsc::channel(2);
+        let cloned_self = self.clone();
 
         let task = tokio::spawn(
             async move {
@@ -111,10 +103,10 @@ impl Client {
                     match request {
                         CentrifugoClientRequest::TagsUpdate(event) => {
                             let (channel, data) = event.into_centrifugo();
-                            let _ = self.publish(&channel, data).await;
+                            let _ = cloned_self.publish(&channel, data).await;
                         }
                         CentrifugoClientRequest::Health(outcome_tx) => {
-                            let outcome = self.publish("_", ()).await.is_ok();
+                            let outcome = cloned_self.publish("_", ()).await.is_ok();
                             if outcome_tx.send(outcome).is_err() {
                                 error!(kind = "outcome channel sending");
                             }
@@ -139,118 +131,95 @@ mod tests {
         use super::*;
 
         mod publish {
-            use trillium_testing::prelude::Conn;
+            use mockito::Server;
 
             use super::*;
 
-            #[test]
-            fn request_send_failure() {
-                async fn handler(_conn: Conn) -> Conn {
-                    panic!()
-                }
-
-                trillium_testing::with_server(handler, |url| async move {
-                    let config = Config {
-                        centrifugo_api_url: url,
-                        centrifugo_api_key: Default::default(),
-                    };
-                    let client = Client::new(&config);
-                    client
-                        .publish("achannel", "somedata")
-                        .await
-                        .expect_err("unexpected publish success");
-
-                    Ok(())
-                })
+            #[tokio::test]
+            async fn request_send_failure() {
+                let server = Server::new_async().await;
+                let config = Config {
+                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_api_key: "\0".to_string(),
+                };
+                let client = Client::new(&config);
+                let result = client.publish("somechannel", "somedata").await;
+                assert!(result.is_err());
             }
 
-            #[test]
-            fn bad_status_code() {
-                async fn handler(conn: Conn) -> Conn {
-                    conn.with_status(500)
-                }
-
-                trillium_testing::with_server(handler, |url| async move {
-                    let config = Config {
-                        centrifugo_api_url: url,
-                        centrifugo_api_key: Default::default(),
-                    };
-                    let client = Client::new(&config);
-                    client
-                        .publish("achannel", "somedata")
-                        .await
-                        .expect_err("unexpected publish success");
-
-                    Ok(())
-                })
+            #[tokio::test]
+            async fn bad_status_code() {
+                let mut server = Server::new_async().await;
+                let mock = server
+                    .mock("POST", "/")
+                    .with_status(500)
+                    .create_async()
+                    .await;
+                let config = Config {
+                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_api_key: Default::default(),
+                };
+                let client = Client::new(&config);
+                let result = client.publish("somechannel", "somedata").await;
+                mock.assert_async().await;
+                assert!(result.is_err());
             }
 
-            #[test]
-            fn unknown_response() {
-                async fn handler(conn: Conn) -> Conn {
-                    conn.ok(r#"{"unknown":null}"#)
-                }
-
-                trillium_testing::with_server(handler, |url| async move {
-                    let config = Config {
-                        centrifugo_api_url: url,
-                        centrifugo_api_key: Default::default(),
-                    };
-                    let client = Client::new(&config);
-                    client
-                        .publish("achannel", "somedata")
-                        .await
-                        .expect_err("unexpected publish success");
-
-                    Ok(())
-                })
+            #[tokio::test]
+            async fn unknown_response() {
+                let mut server = Server::new_async().await;
+                let mock = server
+                    .mock("POST", "/")
+                    .with_body(r#"{"unknown":null}"#)
+                    .create_async()
+                    .await;
+                let config = Config {
+                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_api_key: Default::default(),
+                };
+                let client = Client::new(&config);
+                let result = client.publish("somechannel", "somedata").await;
+                mock.assert_async().await;
+                assert!(result.is_err());
             }
 
-            #[test]
-            fn centrifugo_error() {
-                async fn handler(conn: Conn) -> Conn {
-                    conn.ok(r#"{"error":{"code":42,"message":"a message"}}"#)
-                }
-
-                trillium_testing::with_server(handler, |url| async move {
-                    let config = Config {
-                        centrifugo_api_url: url,
-                        centrifugo_api_key: Default::default(),
-                    };
-                    let client = Client::new(&config);
-                    client
-                        .publish("achannel", "somedata")
-                        .await
-                        .expect_err("unexpected publish success");
-
-                    Ok(())
-                })
+            #[tokio::test]
+            async fn centrifugo_error() {
+                let mut server = Server::new_async().await;
+                let mock = server
+                    .mock("POST", "/")
+                    .with_body(r#"{"error":{"code":42,"message":"a message"}}"#)
+                    .create_async()
+                    .await;
+                let config = Config {
+                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_api_key: Default::default(),
+                };
+                let client = Client::new(&config);
+                let result = client.publish("somechannel", "somedata").await;
+                mock.assert_async().await;
+                assert!(result.is_err());
             }
 
-            #[test]
-            fn success() {
-                async fn handler(mut conn: Conn) -> Conn {
-                    let req_body = conn.request_body_string().await.unwrap();
-                    assert_eq!(
-                        req_body,
-                        r#"{"method":"publish","params":{"channel":"achannel","data":"somedata"}}"#
-                    );
-                    conn.ok(r#"{"result":{}}"#)
-                }
-
-                trillium_testing::with_server(handler, |url| async move {
-                    let config = Config {
-                        centrifugo_api_url: url,
-                        centrifugo_api_key: Default::default(),
-                    };
-                    let client = Client::new(&config);
-                    client
-                        .publish("achannel", "somedata")
-                        .await
-                        .expect("unexpected publish error");
-
-                    Ok(())
-                })
+            #[tokio::test]
+            async fn success() {
+                let mut server = Server::new_async().await;
+                let mock = server
+                    .mock("POST", "/")
+                    .match_body(
+                        r#"{"method":"publish","params":{"channel":"somechannel","data":"somedata"}}"#,
+                    )
+                    .with_body(r#"{"result":{}}"#)
+                    .create_async()
+                    .await;
+                let config = Config {
+                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_api_key: Default::default(),
+                };
+                let client = Client::new(&config);
+                let result = client.publish("somechannel", "somedata").await;
+                mock.assert_async().await;
+                assert!(result.is_ok());
             }
         }
     }

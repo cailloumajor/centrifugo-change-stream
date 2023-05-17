@@ -11,7 +11,6 @@ use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
-use trillium_tokio::Stopper;
 
 use crate::model::{CentrifugoClientRequest, CurrentDataResponse, MongoDBData, UpdateEvent};
 
@@ -44,7 +43,7 @@ impl MongoDBCollection {
         &self,
         centrifugo_request: Sender<CentrifugoClientRequest>,
         abort_reg: AbortRegistration,
-        stopper: Stopper,
+        stopper: oneshot::Sender<()>,
     ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
         let pipeline = [doc! { "$match": { "operationType": "update" } }];
         let change_stream = self
@@ -63,7 +62,9 @@ impl MongoDBCollection {
                         Ok(event) => event,
                         Err(err) => {
                             error!(kind = "stream item error", %err);
-                            stopper.stop();
+                            if stopper.send(()).is_err() {
+                                error!(kind = "stop channel sending");
+                            }
                             return Err(anyhow!("broken change stream"));
                         }
                     };
