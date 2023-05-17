@@ -70,21 +70,18 @@ async fn main() -> anyhow::Result<()> {
     let signals_handle = signals.handle();
 
     let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
-    let (centrifugo_requests_tx, centrifugo_client_task) = centrifugo_client.handle_requests();
+    let (tags_update_tx, tags_update_task) = centrifugo_client.handle_tags_update();
+    let (health_tx, health_task) = centrifugo_client.handle_health();
 
     let (abort_handle, abort_reg) = AbortHandle::new_pair();
 
     let mongodb_collection = db::create_collection(&args.mongodb).await?;
     let change_stream_task = mongodb_collection
-        .handle_change_stream(centrifugo_requests_tx.clone(), abort_reg, api_stopper_tx)
+        .handle_change_stream(tags_update_tx, abort_reg, api_stopper_tx)
         .await?;
     let (current_data_tx, current_data_task) = mongodb_collection.handle_current_data();
 
-    let app = http_api::app(
-        &mongodb_collection.namespace(),
-        centrifugo_requests_tx,
-        current_data_tx,
-    );
+    let app = http_api::app(&mongodb_collection.namespace(), health_tx, current_data_tx);
     async move {
         info!(addr = %args.common.listen_address, msg = "start listening");
         if let Err(err) = Server::bind(&args.common.listen_address)
@@ -104,7 +101,8 @@ async fn main() -> anyhow::Result<()> {
 
     let (change_stream_task_result, ..) = tokio::try_join!(
         change_stream_task,
-        centrifugo_client_task,
+        tags_update_task,
+        health_task,
         current_data_task
     )
     .context("error joining tasks")?;

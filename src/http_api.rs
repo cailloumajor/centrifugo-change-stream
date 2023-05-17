@@ -4,10 +4,10 @@ use axum::http::StatusCode;
 use axum::{routing, Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 use tracing::{debug, error, instrument};
 
-use crate::model::{CentrifugoClientRequest, CurrentDataResponse, EnsureObject};
+use crate::model::{CurrentDataChannel, EnsureObject, HealthChannel};
 
 type StatusWithText = (StatusCode, &'static str);
 
@@ -16,8 +16,8 @@ const INTERNAL_ERROR: StatusWithText = (StatusCode::INTERNAL_SERVER_ERROR, "inte
 #[derive(Clone)]
 struct AppState {
     namespace_prefix: ArcStr,
-    centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
-    current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
+    health_channel: HealthChannel,
+    current_data: CurrentDataChannel,
 }
 
 #[derive(Debug, Deserialize)]
@@ -61,8 +61,8 @@ impl From<CentrifugoProxyError> for Json<Value> {
 
 pub(crate) fn app(
     mongodb_namespace: &str,
-    centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
-    current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
+    health_channel: HealthChannel,
+    current_data: CurrentDataChannel,
 ) -> Router {
     let namespace_prefix = ArcStr::from(mongodb_namespace.to_owned() + ":");
     Router::new()
@@ -73,7 +73,7 @@ pub(crate) fn app(
         )
         .with_state(AppState {
             namespace_prefix,
-            centrifugo_request,
+            health_channel,
             current_data,
         })
 }
@@ -81,8 +81,7 @@ pub(crate) fn app(
 #[instrument(name = "health_api_handler", skip_all)]
 async fn health_handler(State(state): State<AppState>) -> Result<StatusCode, StatusWithText> {
     let (tx, rx) = oneshot::channel();
-    let request = CentrifugoClientRequest::Health(tx);
-    state.centrifugo_request.try_send(request).map_err(|err| {
+    state.health_channel.try_send(tx).map_err(|err| {
         error!(kind = "request channel sending", %err);
         INTERNAL_ERROR
     })?;
@@ -145,19 +144,17 @@ async fn centrifugo_subscribe_handler(
 mod tests {
     use axum::body::Body;
     use axum::http::Request;
+    use tokio::sync::mpsc;
     use tower::ServiceExt;
 
     use super::*;
 
     mod health_handler {
-
         use super::*;
 
-        fn testing_fixture(
-            centrifugo_request: mpsc::Sender<CentrifugoClientRequest>,
-        ) -> (Router, Request<Body>) {
+        fn testing_fixture(health_channel: HealthChannel) -> (Router, Request<Body>) {
             let (current_data, _) = mpsc::channel(1);
-            let app = app(Default::default(), centrifugo_request, current_data);
+            let app = app(Default::default(), health_channel, current_data);
             let req = Request::builder()
                 .uri("/health")
                 .body(Body::empty())
@@ -176,11 +173,11 @@ mod tests {
         #[tokio::test]
         async fn outcome_channel_receiving_error() {
             let (tx, mut rx) = mpsc::channel(1);
+            let (app, req) = testing_fixture(tx);
             tokio::spawn(async move {
                 // Consume and drop the response channel
                 let _ = rx.recv().await.expect("channel has been closed");
             });
-            let (app, req) = testing_fixture(tx);
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
         }
@@ -188,17 +185,11 @@ mod tests {
         #[tokio::test]
         async fn health_error() {
             let (tx, mut rx) = mpsc::channel(1);
+            let (app, req) = testing_fixture(tx);
             tokio::spawn(async move {
-                let CentrifugoClientRequest::Health(response_tx) = rx
-                    .recv()
-                    .await
-                    .expect("channel has been closed")
-                else {
-                        panic!("unexpected request");
-                };
+                let response_tx = rx.recv().await.expect("channel has been closed");
                 response_tx.send(false).expect("error sending response");
             });
-            let (app, req) = testing_fixture(tx);
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
         }
@@ -206,17 +197,11 @@ mod tests {
         #[tokio::test]
         async fn success() {
             let (tx, mut rx) = mpsc::channel(1);
+            let (app, req) = testing_fixture(tx);
             tokio::spawn(async move {
-                let CentrifugoClientRequest::Health(response_tx) = rx
-                    .recv()
-                    .await
-                    .expect("channel has been closed")
-                else {
-                        panic!("unexpected request");
-                };
+                let response_tx = rx.recv().await.expect("channel has been closed");
                 response_tx.send(true).expect("error sending response");
             });
-            let (app, req) = testing_fixture(tx);
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::NO_CONTENT);
         }
@@ -229,9 +214,7 @@ mod tests {
 
         use super::*;
 
-        fn testing_app(
-            current_data: mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>,
-        ) -> Router {
+        fn testing_app(current_data: CurrentDataChannel) -> Router {
             let (centrifugo_request, _) = mpsc::channel(1);
             app("ns", centrifugo_request, current_data)
         }

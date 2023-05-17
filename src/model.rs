@@ -4,8 +4,12 @@ use mongodb::bson::{Bson, DateTime};
 use mongodb::Namespace;
 use serde::ser::{self, SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info_span};
+
+pub(crate) type TagsUpdateChannel = mpsc::Sender<UpdateEvent>;
+pub(crate) type HealthChannel = mpsc::Sender<oneshot::Sender<bool>>;
+pub(crate) type CurrentDataChannel = mpsc::Sender<(String, oneshot::Sender<CurrentDataResponse>)>;
 
 #[derive(Deserialize)]
 #[serde(remote = "Namespace")]
@@ -57,11 +61,6 @@ impl UpdateEvent {
 
         (channel, data)
     }
-}
-
-pub(crate) enum CentrifugoClientRequest {
-    TagsUpdate(UpdateEvent),
-    Health(oneshot::Sender<bool>),
 }
 
 pub(crate) type CurrentDataResponse = Result<Option<MongoDBData>, ()>;
