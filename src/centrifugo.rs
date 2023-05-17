@@ -89,8 +89,8 @@ impl Client {
         Ok(())
     }
 
-    pub(crate) fn handle_tags_update(&self) -> (TagsUpdateChannel, JoinHandle<()>) {
-        let (tx, mut rx) = mpsc::channel::<UpdateEvent>(10);
+    pub(crate) fn handle_tags_update(&self, buffer: usize) -> (TagsUpdateChannel, JoinHandle<()>) {
+        let (tx, mut rx) = mpsc::channel::<UpdateEvent>(buffer);
         let cloned_self = self.clone();
 
         let task = tokio::spawn(

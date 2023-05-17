@@ -32,6 +32,10 @@ struct Args {
     #[command(flatten)]
     mongodb: db::Config,
 
+    /// Size of the tags update channel buffer
+    #[arg(env, long, value_parser = clap::value_parser!(u8).range(1..), default_value = "10")]
+    tags_update_buffer: u8,
+
     #[command(flatten)]
     verbose: Verbosity<InfoLevel>,
 }
@@ -70,7 +74,8 @@ async fn main() -> anyhow::Result<()> {
     let signals_handle = signals.handle();
 
     let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
-    let (tags_update_tx, tags_update_task) = centrifugo_client.handle_tags_update();
+    let (tags_update_tx, tags_update_task) =
+        centrifugo_client.handle_tags_update(args.tags_update_buffer.into());
     let (health_tx, health_task) = centrifugo_client.handle_health();
 
     let (abort_handle, abort_reg) = AbortHandle::new_pair();
