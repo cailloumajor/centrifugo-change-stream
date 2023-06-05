@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context as _};
 use clap::Args;
-use futures_util::stream::{AbortRegistration, Abortable};
 use futures_util::StreamExt;
 use mongodb::bson::{doc, Document};
 use mongodb::options::ClientOptions;
@@ -10,6 +9,7 @@ use mongodb::{Client, Collection};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
 
 use crate::model::{
@@ -44,29 +44,27 @@ impl MongoDBCollection {
     pub(crate) async fn handle_change_stream(
         &self,
         tags_update_channel: TagsUpdateChannel,
-        abort_reg: AbortRegistration,
-        stopper: oneshot::Sender<()>,
+        shutdown_token: CancellationToken,
     ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
         let pipeline = [doc! { "$match": { "operationType": "update" } }];
-        let change_stream = self
+        let mut change_stream = self
             .0
             .watch(pipeline, None)
             .await
             .context("error starting change stream")?
-            .with_type::<UpdateEvent>();
-        let mut abortable_stream = Abortable::new(change_stream, abort_reg);
+            .with_type::<UpdateEvent>()
+            .take_until(shutdown_token.clone().cancelled_owned())
+            .boxed();
         let handle = tokio::spawn(
             async move {
                 info!(status = "started");
 
-                while let Some(item) = abortable_stream.next().await {
+                while let Some(item) = change_stream.next().await {
                     let event = match item {
                         Ok(event) => event,
                         Err(err) => {
                             error!(kind = "stream item error", %err);
-                            if stopper.send(()).is_err() {
-                                error!(kind = "stop channel sending");
-                            }
+                            shutdown_token.cancel();
                             return Err(anyhow!("broken change stream"));
                         }
                     };

@@ -2,12 +2,11 @@ use anyhow::Context as _;
 use axum::Server;
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, Verbosity};
-use futures_util::stream::AbortHandle;
 use futures_util::StreamExt;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::low_level::signal_name;
 use signal_hook_tokio::Signals;
-use tokio::sync::oneshot;
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info, info_span, instrument, Instrument};
 use tracing_log::LogTracer;
 
@@ -41,7 +40,7 @@ struct Args {
 }
 
 #[instrument(skip_all)]
-async fn wait_shutdown(signals: Signals, stopper_rx: oneshot::Receiver<()>) {
+async fn wait_shutdown(signals: Signals, shutdown_token: CancellationToken) {
     info!(status = "started");
     let mut signals_stream = signals.map(|signal| signal_name(signal).unwrap_or("unknown"));
     tokio::select! {
@@ -52,7 +51,7 @@ async fn wait_shutdown(signals: Signals, stopper_rx: oneshot::Receiver<()>) {
                 error!(err = "signal stream has been exhausted", reaction = "shutting down");
             }
         }
-        _ = stopper_rx => {
+        _ = shutdown_token.cancelled() => {
             info!(msg = "received stop", reaction = "shutting down");
         }
     };
@@ -68,8 +67,6 @@ async fn main() -> anyhow::Result<()> {
 
     LogTracer::init_with_filter(args.verbose.log_level_filter())?;
 
-    let (api_stopper_tx, api_stopper_rx) = oneshot::channel();
-
     let signals = Signals::new(TERM_SIGNALS).context("error registering termination signals")?;
     let signals_handle = signals.handle();
 
@@ -78,20 +75,21 @@ async fn main() -> anyhow::Result<()> {
         centrifugo_client.handle_tags_update(args.tags_update_buffer.into());
     let (health_tx, health_task) = centrifugo_client.handle_health();
 
-    let (abort_handle, abort_reg) = AbortHandle::new_pair();
+    let shutdown_token = CancellationToken::new();
 
     let mongodb_collection = db::create_collection(&args.mongodb).await?;
     let change_stream_task = mongodb_collection
-        .handle_change_stream(tags_update_tx, abort_reg, api_stopper_tx)
+        .handle_change_stream(tags_update_tx, shutdown_token.clone())
         .await?;
     let (current_data_tx, current_data_task) = mongodb_collection.handle_current_data();
 
     let app = http_api::app(&mongodb_collection.namespace(), health_tx, current_data_tx);
+    let cloned_token = shutdown_token.clone();
     async move {
         info!(addr = %args.common.listen_address, msg = "start listening");
         if let Err(err) = Server::bind(&args.common.listen_address)
             .serve(app.into_make_service())
-            .with_graceful_shutdown(wait_shutdown(signals, api_stopper_rx))
+            .with_graceful_shutdown(wait_shutdown(signals, cloned_token))
             .await
         {
             error!(kind = "HTTP server", %err);
@@ -101,14 +99,14 @@ async fn main() -> anyhow::Result<()> {
     .instrument(info_span!("http_server_task"))
     .await;
 
-    abort_handle.abort();
     signals_handle.close();
+    shutdown_token.cancel();
 
     let (change_stream_task_result, ..) = tokio::try_join!(
         change_stream_task,
         tags_update_task,
         health_task,
-        current_data_task
+        current_data_task,
     )
     .context("error joining tasks")?;
     change_stream_task_result?;
