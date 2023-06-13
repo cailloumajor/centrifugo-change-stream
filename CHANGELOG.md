@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.2.3](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.2...v3.2.3) (2023-06-13)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap to 4.3.1 ([93c7290](https://github.com/cailloumajor/centrifugo-change-stream/commit/93c72909d7c9c18fae8b0414a3c1585ebef54ad6))
+* **deps:** update rust crate clap to 4.3.2 ([7158a4b](https://github.com/cailloumajor/centrifugo-change-stream/commit/7158a4be2cd0b3d12b07402ab2918d005403a078))
+* **deps:** update rust crate clap to 4.3.3 ([8a6a217](https://github.com/cailloumajor/centrifugo-change-stream/commit/8a6a217dd6e2c0f6da9b52a834f83d28e2e9f96a))
+* **deps:** update rust crate serde to 1.0.164 ([24805ba](https://github.com/cailloumajor/centrifugo-change-stream/commit/24805bab4ccc400313e0ccddff260982b64210b9))
+* **deps:** update rust crate tokio to 1.28.2 ([f584024](https://github.com/cailloumajor/centrifugo-change-stream/commit/f5840247d3046d7ff74de2832206a0baba27adfb))
+* **deps:** update rust crate url to 2.4.0 ([5c20f43](https://github.com/cailloumajor/centrifugo-change-stream/commit/5c20f439c24536d7ee2079e7d209d7963cf0b1e5))
+* **deps:** update rust docker tag to v1.70.0 ([35f65b7](https://github.com/cailloumajor/centrifugo-change-stream/commit/35f65b79db94f12bb0bde3bd805af7e91413edec))
+* use CencellationToken ([593f017](https://github.com/cailloumajor/centrifugo-change-stream/commit/593f017297b56b7a1c18bed245e89e185645e83b))
+
 ## [3.2.2](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.1...v3.2.2) (2023-05-21)
 
 
