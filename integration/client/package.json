@@ -1,7 +1,7 @@
 {
     "private": true,
     "dependencies": {
-        "centrifuge": "3.1",
+        "centrifuge": "4.0",
         "ws": "8.13"
     }
 }
