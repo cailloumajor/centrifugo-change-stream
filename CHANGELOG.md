@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.2.4](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.3...v3.2.4) (2023-07-17)
+
+
+### Bug Fixes
+
+* **deps:** update dependency centrifuge to v4 ([a00a580](https://github.com/cailloumajor/centrifugo-change-stream/commit/a00a5807194842afb6c68a90d4d27b609d2072f0))
+* **deps:** update rust crate anyhow to 1.0.72 ([3ecfd1f](https://github.com/cailloumajor/centrifugo-change-stream/commit/3ecfd1f4a29aa0d7fcd7f6f713da03181d387eff))
+* **deps:** update rust crate axum to 0.6.19 ([e90bdd5](https://github.com/cailloumajor/centrifugo-change-stream/commit/e90bdd542e6b43b323c743f4f1e900244c7790f3))
+* **deps:** update rust crate clap to 4.3.11 ([f0a66e1](https://github.com/cailloumajor/centrifugo-change-stream/commit/f0a66e1a49cadf0026b17e90da87340270db24da))
+* **deps:** update rust crate clap to 4.3.12 ([62d89de](https://github.com/cailloumajor/centrifugo-change-stream/commit/62d89dea63eacf6dafe4f8cece1bbe87bd6cd340))
+* **deps:** update rust crate mongodb to 2.6.0 ([6bd69f7](https://github.com/cailloumajor/centrifugo-change-stream/commit/6bd69f7ff4ab60926f55ded4ae2e424ce6d5ce0b))
+* **deps:** update rust crate serde to 1.0.171 ([5cdc490](https://github.com/cailloumajor/centrifugo-change-stream/commit/5cdc49001f9a15eece286fd460cef30df33c1067))
+* **deps:** update rust crate serde_json to 1.0.100 ([2bfa5fd](https://github.com/cailloumajor/centrifugo-change-stream/commit/2bfa5fd1e078f4498ab5c7b4ee3d6b44948c0e09))
+* **deps:** update rust crate serde_json to 1.0.103 ([953394c](https://github.com/cailloumajor/centrifugo-change-stream/commit/953394cdec9c30e45322f63409915e24456378f0))
+* **deps:** update rust crate signal-hook to 0.3.16 ([7e4a821](https://github.com/cailloumajor/centrifugo-change-stream/commit/7e4a821d2f97b907045bd8c643e16fda918fdf05))
+* **deps:** update rust crate tokio to 1.29.1 ([4ba68d3](https://github.com/cailloumajor/centrifugo-change-stream/commit/4ba68d3140d485bac1153c4e2ae6e5ddb77ce218))
+* **deps:** update rust docker tag to v1.71.0 ([86c57e9](https://github.com/cailloumajor/centrifugo-change-stream/commit/86c57e9708e21818418d29abf9f1dce5eaa18dda))
+
 ## [3.2.3](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.2...v3.2.3) (2023-06-13)
 
 
