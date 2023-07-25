@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.2.5](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.4...v3.2.5) (2023-07-25)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap to 4.3.15 ([d7c5352](https://github.com/cailloumajor/centrifugo-change-stream/commit/d7c5352014a027e2fec7668f4a60dee544cc5694))
+* **deps:** update rust crate clap to 4.3.17 ([c69ff8c](https://github.com/cailloumajor/centrifugo-change-stream/commit/c69ff8cbcce46ff3e723913becf9e1d810904254))
+* **deps:** update rust crate clap to 4.3.19 ([b0daa75](https://github.com/cailloumajor/centrifugo-change-stream/commit/b0daa755272d88cd13a2bc2f5711b167a6489752))
+* **deps:** update rust crate serde to 1.0.173 ([48ac667](https://github.com/cailloumajor/centrifugo-change-stream/commit/48ac66769ec20a31de7080f46f7df232ebbf4850))
+* **deps:** update rust crate serde to 1.0.174 ([62951ba](https://github.com/cailloumajor/centrifugo-change-stream/commit/62951ba1f8fbb25accf043994de313fabda64aac))
+* **deps:** update rust crate serde to 1.0.175 ([be7330a](https://github.com/cailloumajor/centrifugo-change-stream/commit/be7330ae3329ee607954bcf99a388dd53faf3e3d))
+* **deps:** update rust crate signal-hook to 0.3.17 ([bc4a13b](https://github.com/cailloumajor/centrifugo-change-stream/commit/bc4a13be0cd578fc5e73a469dc5491e7521b1e5f))
+
 ## [3.2.4](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.3...v3.2.4) (2023-07-17)
 
 
