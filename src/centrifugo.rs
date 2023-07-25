@@ -142,9 +142,17 @@ mod tests {
         use super::*;
 
         mod publish {
-            use mockito::Server;
+            use mockito::{Mock, Server};
 
             use super::*;
+
+            fn server_mock(server: &mut Server) -> Mock {
+                server
+                    .mock("POST", "/")
+                    .match_header("Authorization", "apikey somekey")
+                    .match_header("Content-Type", "application/json")
+                    .match_body(r#"{"method":"publish","params":{"channel":"somechannel","data":"somedata"}}"#)
+            }
 
             #[tokio::test]
             async fn request_send_failure() {
@@ -161,14 +169,13 @@ mod tests {
             #[tokio::test]
             async fn bad_status_code() {
                 let mut server = Server::new_async().await;
-                let mock = server
-                    .mock("POST", "/")
+                let mock = server_mock(&mut server)
                     .with_status(500)
                     .create_async()
                     .await;
                 let config = Config {
                     centrifugo_api_url: server.url().parse().unwrap(),
-                    centrifugo_api_key: Default::default(),
+                    centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
                 let result = client.publish("somechannel", "somedata").await;
@@ -179,14 +186,13 @@ mod tests {
             #[tokio::test]
             async fn unknown_response() {
                 let mut server = Server::new_async().await;
-                let mock = server
-                    .mock("POST", "/")
+                let mock = server_mock(&mut server)
                     .with_body(r#"{"unknown":null}"#)
                     .create_async()
                     .await;
                 let config = Config {
                     centrifugo_api_url: server.url().parse().unwrap(),
-                    centrifugo_api_key: Default::default(),
+                    centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
                 let result = client.publish("somechannel", "somedata").await;
@@ -197,14 +203,13 @@ mod tests {
             #[tokio::test]
             async fn centrifugo_error() {
                 let mut server = Server::new_async().await;
-                let mock = server
-                    .mock("POST", "/")
+                let mock = server_mock(&mut server)
                     .with_body(r#"{"error":{"code":42,"message":"a message"}}"#)
                     .create_async()
                     .await;
                 let config = Config {
                     centrifugo_api_url: server.url().parse().unwrap(),
-                    centrifugo_api_key: Default::default(),
+                    centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
                 let result = client.publish("somechannel", "somedata").await;
@@ -215,17 +220,13 @@ mod tests {
             #[tokio::test]
             async fn success() {
                 let mut server = Server::new_async().await;
-                let mock = server
-                    .mock("POST", "/")
-                    .match_body(
-                        r#"{"method":"publish","params":{"channel":"somechannel","data":"somedata"}}"#,
-                    )
+                let mock = server_mock(&mut server)
                     .with_body(r#"{"result":{}}"#)
                     .create_async()
                     .await;
                 let config = Config {
                     centrifugo_api_url: server.url().parse().unwrap(),
-                    centrifugo_api_key: Default::default(),
+                    centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
                 let result = client.publish("somechannel", "somedata").await;
