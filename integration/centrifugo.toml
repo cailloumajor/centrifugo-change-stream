@@ -3,6 +3,7 @@ api_key = "f84511bb-62aa-451b-b4d7-2bba964c404e"
 allowed_origins = [  ]
 allow_anonymous_connect_without_token = true
 granular_proxy_mode = true
+log_level = "debug"
 
 [[proxies]]
 name = "subscribe"

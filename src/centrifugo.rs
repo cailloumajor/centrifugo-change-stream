@@ -1,6 +1,6 @@
 use arcstr::ArcStr;
 use clap::Args;
-use reqwest::{header, Client as HttpClient};
+use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::{mpsc, oneshot};
@@ -13,9 +13,9 @@ use crate::model::{HealthChannel, TagsUpdateChannel, UpdateEvent};
 #[derive(Args)]
 #[group(skip)]
 pub(crate) struct Config {
-    /// Centrifugo server API URL
-    #[arg(env, long, default_value = "http://centrifugo:8000/api")]
-    centrifugo_api_url: Url,
+    /// Centrifugo server base URL
+    #[arg(env, long, default_value = "http://centrifugo:8000")]
+    centrifugo_url: Url,
 
     /// Centrifugo API key
     #[arg(env, long)]
@@ -31,39 +31,37 @@ enum PublishResponse {
 
 #[derive(Clone)]
 pub(crate) struct Client {
-    api_url: Url,
-    auth_header: ArcStr,
+    base_url: Url,
+    api_key: ArcStr,
     http: HttpClient,
 }
 
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
-        let api_url = config.centrifugo_api_url.clone();
-        let auth_header = ArcStr::from(format!("apikey {}", config.centrifugo_api_key));
+        let base_url = config.centrifugo_url.clone();
+        let api_key = ArcStr::from(&config.centrifugo_api_key);
         let http = HttpClient::new();
 
         Self {
-            api_url,
-            auth_header,
+            base_url,
+            api_key,
             http,
         }
     }
 
     #[instrument(name = "centrifugo_publish", skip_all)]
     async fn publish(&self, channel: &str, data: impl Serialize) -> Result<(), ()> {
+        let url = self.base_url.join("/api/publish").unwrap();
         let json = json!({
-            "method": "publish",
-            "params": {
-                "channel": channel,
-                "data": data
-            }
+            "channel": channel,
+            "data": data,
         });
         debug!(%json);
 
         let resp = self
             .http
-            .post(Url::clone(&self.api_url))
-            .header(header::AUTHORIZATION, self.auth_header.as_str())
+            .post(url)
+            .header("X-API-Key", self.api_key.as_str())
             .json(&json)
             .send()
             .await
@@ -148,17 +146,17 @@ mod tests {
 
             fn server_mock(server: &mut Server) -> Mock {
                 server
-                    .mock("POST", "/")
-                    .match_header("Authorization", "apikey somekey")
+                    .mock("POST", "/api/publish")
+                    .match_header("X-API-Key", "somekey")
                     .match_header("Content-Type", "application/json")
-                    .match_body(r#"{"method":"publish","params":{"channel":"somechannel","data":"somedata"}}"#)
+                    .match_body(r#"{"channel":"somechannel","data":"somedata"}"#)
             }
 
             #[tokio::test]
             async fn request_send_failure() {
                 let server = Server::new_async().await;
                 let config = Config {
-                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_url: server.url().parse().unwrap(),
                     centrifugo_api_key: "\0".to_string(),
                 };
                 let client = Client::new(&config);
@@ -174,7 +172,7 @@ mod tests {
                     .create_async()
                     .await;
                 let config = Config {
-                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_url: server.url().parse().unwrap(),
                     centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
@@ -191,7 +189,7 @@ mod tests {
                     .create_async()
                     .await;
                 let config = Config {
-                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_url: server.url().parse().unwrap(),
                     centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
@@ -208,7 +206,7 @@ mod tests {
                     .create_async()
                     .await;
                 let config = Config {
-                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_url: server.url().parse().unwrap(),
                     centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
@@ -225,7 +223,7 @@ mod tests {
                     .create_async()
                     .await;
                 let config = Config {
-                    centrifugo_api_url: server.url().parse().unwrap(),
+                    centrifugo_url: server.url().parse().unwrap(),
                     centrifugo_api_key: "somekey".to_string(),
                 };
                 let client = Client::new(&config);
