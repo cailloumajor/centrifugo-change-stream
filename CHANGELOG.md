@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.0.0](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.5...v4.0.0) (2023-07-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* compatibility with Centrifugo v5
+
+### Features
+
+* compatibility with Centrifugo v5 ([a8fc6ef](https://github.com/cailloumajor/centrifugo-change-stream/commit/a8fc6efbf88e98e9ee96614692502f3e093fbaf5))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate serde to 1.0.177 ([8eabeda](https://github.com/cailloumajor/centrifugo-change-stream/commit/8eabedad9051117fcebfa0d3cc7520e404b64d38))
+* **deps:** update rust crate serde_json to 1.0.104 ([245d07f](https://github.com/cailloumajor/centrifugo-change-stream/commit/245d07f42b8c664e45b3b13779a0808302e5f95d))
+
 ## [3.2.5](https://github.com/cailloumajor/centrifugo-change-stream/compare/v3.2.4...v3.2.5) (2023-07-25)
 
 
