@@ -66,8 +66,8 @@ Usage: centrifugo-change-stream [OPTIONS] --centrifugo-api-key <CENTRIFUGO_API_K
 Options:
       --listen-address <LISTEN_ADDRESS>
           Address to listen on [env: LISTEN_ADDRESS=] [default: 0.0.0.0:8080]
-      --centrifugo-api-url <CENTRIFUGO_API_URL>
-          Centrifugo server API URL [env: CENTRIFUGO_API_URL=] [default: http://centrifugo:8000/api]
+      --centrifugo-url <CENTRIFUGO_URL>
+          Centrifugo server base URL [env: CENTRIFUGO_URL=] [default: http://centrifugo:8000]
       --centrifugo-api-key <CENTRIFUGO_API_KEY>
           Centrifugo API key [env: CENTRIFUGO_API_KEY=]
       --mongodb-uri <MONGODB_URI>
