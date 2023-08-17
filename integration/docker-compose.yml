@@ -3,7 +3,7 @@ version: "3.6"
 services:
 
   mongodb:
-    image: mongo:6.0
+    image: mongo:7.0
     command:
       - --replSet=test
     volumes:
