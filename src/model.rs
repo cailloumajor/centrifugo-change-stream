@@ -50,7 +50,7 @@ impl UpdateEvent {
                 data.insert_value(data_key.into(), value);
             } else if let Some(ts_key) = key.strip_prefix("ts.") {
                 let Bson::DateTime(date_time) = value else {
-                    error!(kind = "not a BSON DateTime", field=key, ?value);
+                    error!(kind = "not a BSON DateTime", field = key, ?value);
                     continue;
                 };
                 data.insert_timestamp(ts_key.into(), date_time);
