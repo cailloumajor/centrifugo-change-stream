@@ -1,6 +1,6 @@
 [package]
 name = "centrifugo-change-stream"
-version = "4.0.3"
+version = "4.0.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ arcstr = { version = "1.1.5", default-features = false }
 clap-verbosity-flag = "2.0.1"
 futures-util = "0.3.28"
 mongodb = "2.6.1"
-serde = { version = "1.0.186", features = [ "derive" ] }
+serde = { version = "1.0.185", features = [ "derive" ] }
 serde_json = "1.0.105"
 signal-hook = { version = "0.3.17", default-features = false }
 signal-hook-tokio = { version = "0.3.1", features = [ "futures-v0_3" ] }
