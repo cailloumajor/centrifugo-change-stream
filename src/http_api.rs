@@ -126,9 +126,10 @@ async fn centrifugo_subscribe_handler(
             error!(kind = "outcome channel receiving", %err);
             INTERNAL_ERROR
         })?
-        .map(EnsureObject) else {
-            return Ok(CentrifugoProxyError::InternalError.into())
-        };
+        .map(EnsureObject)
+    else {
+        return Ok(CentrifugoProxyError::InternalError.into());
+    };
 
     let resp_json = json!({
         "result": {
