@@ -63,6 +63,8 @@ fi
 
 # Start pushing data to MongoDB
 docker compose exec -d mongodb mongosh --norc /usr/src/push-data.mongodb
+# Ensure data has been pushed at least one time
+sleep 1
 
 # Run tests
 if ! docker compose up client --exit-code-from client --no-log-prefix --quiet-pull; then
