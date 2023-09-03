@@ -5,26 +5,53 @@ db.disableFreeMonitoring();
 const genTimestamp = () =>
     new Date(Date.now() - Math.floor(Math.random() * 60) * 1000);
 
+const testData = {
+    integer: 150,
+    float: 32.0,
+    tsFirst: genTimestamp(),
+    tsSecond: genTimestamp(),
+    state: 0,
+};
+
 function updateTestCollection() {
     db.testcoll.updateOne(
         {
-            _id: "integration-tests"
+            _id: "integration-tests",
         },
         {
             $currentDate: {
-                updatedAt: true
+                updatedAt: true,
             },
             $set: {
-                "val.integer": Math.floor(Math.random() * 100 + 150),
-                "val.float": Math.random() * 10 + 32,
-                "ts.first": genTimestamp(),
-                "ts.second": genTimestamp(),
-            }
+                "val.integer": testData.integer,
+                "val.float": testData.float,
+                "ts.first": testData.tsFirst,
+                "ts.second": testData.tsSecond,
+            },
         },
         {
-            upsert: true
+            upsert: true,
         }
     );
+    switch (testData.state) {
+        case 0:
+            testData.integer += 1;
+            testData.tsFirst = genTimestamp();
+            testData.state += 1;
+            break;
+        case 1:
+            testData.float += 0.3;
+            testData.tsSecond = genTimestamp();
+            testData.state += 1;
+            break;
+        case 2:
+            testData.integer += 1;
+            testData.float += 0.3;
+            testData.tsFirst = genTimestamp();
+            testData.tsSecond = genTimestamp();
+            testData.state = 0;
+            break;
+    }
 }
 
 while (true) {

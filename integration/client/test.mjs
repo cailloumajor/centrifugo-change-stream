@@ -5,22 +5,12 @@ import { argv } from "node:process";
 import { Centrifuge } from "centrifuge";
 import WebSocket from "ws";
 
-const inRange = (n, min, max) => n >= min && n <= max;
-const validDate = (ts) => !isNaN(Date.parse(ts));
-
-const checkData = (data) => {
-    assert.ok(data.val?.integer != null);
-    assert.ok(inRange(data.val.integer, 150, 250));
-
-    assert.ok(data.val?.float != null);
-    assert.ok(inRange(data.val.float, 32.0, 42.0));
-
-    assert.ok(data.ts?.first != null);
-    assert.ok(validDate(data.ts.first));
-
-    assert.ok(data.ts?.second != null);
-    assert.ok(validDate(data.ts.second));
-};
+const assertInRange = (n, min, max) =>
+    assert.ok(n >= min && n <= max, `unexpected ${min} <= ${n} <= ${max}`);
+const assertIntegerRange = (n) => assertInRange(n, 150, 160);
+const assertFloatRange = (n) => assertInRange(n, 32.0, 35.0);
+const assertDate = (ts) =>
+    assert.ok(!isNaN(Date.parse(ts)), `unexpected timestamp: ${ts}`);
 
 let noDataSubscribed = false;
 const publications = [];
@@ -59,7 +49,10 @@ sub.on("subscribed", ({ channel, data }) => {
         data
     );
     console.log("testing data object validity from subscribe proxy");
-    checkData(data);
+    assertIntegerRange(data.val.integer);
+    assertFloatRange(data.val.float);
+    assertDate(data.ts.first);
+    assertDate(data.ts.second);
 });
 
 sub.on("publication", ({ data }) => {
@@ -77,22 +70,7 @@ const publicationsTimeout = setTimeout(() => {
 
 await new Promise((resolve) => {
     const interval = setInterval(() => {
-        let membersCount = [0, 0, 0, 0];
-        publications.forEach((pub) => {
-            if (pub.val?.integer) {
-                membersCount[0] += 1;
-            }
-            if (pub.val?.float) {
-                membersCount[1] += 1;
-            }
-            if (pub.ts?.first) {
-                membersCount[2] += 1;
-            }
-            if (pub.ts?.second) {
-                membersCount[3] += 1;
-            }
-        });
-        if (!membersCount.some((count) => count < 5)) {
+        if (publications.length >= 6) {
             clearInterval(interval);
             resolve();
         }
@@ -104,9 +82,22 @@ clearTimeout(publicationsTimeout);
 
 assert.ok(noDataSubscribed, "no-data channel has not been subscribed");
 
-publications.forEach((publication) => {
-    console.log("testing data object validity from received publication");
-    checkData(publication);
-});
+console.log("testing validity of received publications");
+const integerPublished = publications.filter(
+    (data) => data.val?.integer != null
+);
+assert.strictEqual(integerPublished.length, 4);
+integerPublished.forEach((data) => assertIntegerRange(data.val.integer));
+const floatPublished = publications.filter((data) => data.val?.float != null);
+assert.strictEqual(floatPublished.length, 4);
+floatPublished.forEach((data) => assertFloatRange(data.val.float));
+const tsFirstPublished = publications.filter((data) => data.ts?.first != null);
+assert.strictEqual(tsFirstPublished.length, 4);
+tsFirstPublished.forEach((data) => assertDate(data.ts.first));
+const tsSecondPublished = publications.filter(
+    (data) => data.ts?.second != null
+);
+assert.strictEqual(tsSecondPublished.length, 4);
+tsSecondPublished.forEach((data) => assertDate(data.ts.second));
 
 console.log("%s: success", basename(argv[1]));
