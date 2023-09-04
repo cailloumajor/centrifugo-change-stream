@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.0.6](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.5...v4.0.6) (2023-09-04)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap to 4.4.2 ([0d0a90a](https://github.com/cailloumajor/centrifugo-change-stream/commit/0d0a90a0adcaa47110b403a5c2384fc2e107cb57))
+* **deps:** update rust crate serde to 1.0.188 ([545fe15](https://github.com/cailloumajor/centrifugo-change-stream/commit/545fe1550aec393ac308e083baebe59b1539a122))
+* **deps:** update rust crate url to 2.4.1 ([8e08b2e](https://github.com/cailloumajor/centrifugo-change-stream/commit/8e08b2e27fa6c5b8eb7a9b2864eae60a3fb21419))
+
 ## [4.0.5](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.4...v4.0.5) (2023-08-25)
 
 
