@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.8](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.7...v4.0.8) (2023-09-20)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate tokio-util to 0.7.9 ([84e739a](https://github.com/cailloumajor/centrifugo-change-stream/commit/84e739ac12a51c3f03915d67a1807f8d849e0e7c))
+
 ## [4.0.7](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.6...v4.0.7) (2023-09-20)
 
 
