@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use tokio::sync::{mpsc, oneshot};
-use tokio_util::sync::CancellationToken;
 
 type RequestPayload<S, R> = (S, oneshot::Sender<R>);
 
@@ -23,8 +22,6 @@ impl<S, R> Clone for RoundtripSender<S, R> {
 impl<S, R> RoundtripSender<S, R> {
     pub(crate) async fn roundtrip(&self, request: S) -> Result<R, String> {
         let (reply_tx, reply_rx) = oneshot::channel();
-        let cancellation_token = CancellationToken::new();
-        let _drop_guard = cancellation_token.clone().drop_guard();
         self.inner
             .send_timeout((request, reply_tx), SEND_TIMEOUT)
             .await
