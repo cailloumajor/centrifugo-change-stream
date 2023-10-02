@@ -42,21 +42,13 @@ struct Args {
 }
 
 #[instrument(skip_all)]
-async fn wait_shutdown(signals: Signals, shutdown_token: CancellationToken) {
+async fn handle_signals(signals: Signals, shutdown_token: CancellationToken) {
     info!(status = "started");
     let mut signals_stream = signals.map(|signal| signal_name(signal).unwrap_or("unknown"));
-    tokio::select! {
-        maybe_signal = signals_stream.next() => {
-            if let Some(signal) = maybe_signal {
-                info!(msg = "received signal", reaction = "shutting down", signal);
-            } else {
-                error!(err = "signal stream has been exhausted", reaction = "shutting down");
-            }
-        }
-        _ = shutdown_token.cancelled() => {
-            info!(msg = "received stop", reaction = "shutting down");
-        }
-    };
+    while let Some(signal) = signals_stream.next().await {
+        info!(msg = "received signal", reaction = "shutting down", signal);
+        shutdown_token.cancel();
+    }
 }
 
 #[tokio::main]
@@ -69,15 +61,16 @@ async fn main() -> anyhow::Result<()> {
 
     LogTracer::init_with_filter(args.verbose.log_level_filter())?;
 
+    let shutdown_token = CancellationToken::new();
+
     let signals = Signals::new(TERM_SIGNALS).context("error registering termination signals")?;
     let signals_handle = signals.handle();
+    let signals_task = tokio::spawn(handle_signals(signals, shutdown_token.clone()));
 
     let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
     let (tags_update_channel, tags_update_task) =
         centrifugo_client.handle_tags_update(args.tags_update_buffer.into());
     let (health_channel, health_task) = centrifugo_client.handle_health();
-
-    let shutdown_token = CancellationToken::new();
 
     let mongodb_collection = db::create_collection(&args.mongodb).await?;
     let change_stream_task = mongodb_collection
@@ -90,12 +83,11 @@ async fn main() -> anyhow::Result<()> {
         health_channel,
         current_data_channel,
     });
-    let cloned_token = shutdown_token.clone();
     async move {
         info!(addr = %args.common.listen_address, msg = "start listening");
         if let Err(err) = Server::bind(&args.common.listen_address)
             .serve(app.into_make_service())
-            .with_graceful_shutdown(wait_shutdown(signals, cloned_token))
+            .with_graceful_shutdown(shutdown_token.cancelled())
             .await
         {
             error!(kind = "HTTP server", %err);
@@ -106,10 +98,10 @@ async fn main() -> anyhow::Result<()> {
     .await;
 
     signals_handle.close();
-    shutdown_token.cancel();
 
     let (change_stream_task_result, ..) = tokio::try_join!(
         change_stream_task,
+        signals_task,
         tags_update_task,
         health_task,
         current_data_task,
