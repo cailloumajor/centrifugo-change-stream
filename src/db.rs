@@ -6,17 +6,16 @@ use futures_util::StreamExt;
 use mongodb::bson::{doc, Document};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection};
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
 
-use crate::model::{
-    CurrentDataChannel, CurrentDataResponse, MongoDBData, TagsUpdateChannel, UpdateEvent,
-};
+use crate::centrifugo::TagsUpdateChannel;
+use crate::channel::{roundtrip_channel, RoundtripSender};
+use crate::model::{MongoDBData, UpdateEvent};
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");
+const SEND_TIMEOUT: Duration = Duration::from_millis(100);
 
 #[derive(Args)]
 #[group(skip)]
@@ -33,6 +32,8 @@ pub(crate) struct Config {
     #[arg(env, long)]
     mongodb_collection: String,
 }
+
+pub(crate) type CurrentDataChannel = RoundtripSender<String, Result<Option<MongoDBData>, ()>>;
 
 pub(crate) struct MongoDBCollection(Collection<Document>);
 
@@ -68,8 +69,8 @@ impl MongoDBCollection {
                             return Err(anyhow!("broken change stream"));
                         }
                     };
-                    if let Err(err) = tags_update_channel.try_send(event) {
-                        error!(kind = "request channel sending", %err);
+                    if let Err(err) = tags_update_channel.send_timeout(event, SEND_TIMEOUT).await {
+                        error!(kind = "tags update channel sending", %err);
                     }
                 }
 
@@ -84,7 +85,7 @@ impl MongoDBCollection {
 
     pub(crate) fn handle_current_data(&self) -> (CurrentDataChannel, JoinHandle<()>) {
         let collection = self.0.clone_with_type::<MongoDBData>();
-        let (tx, mut rx) = mpsc::channel::<(String, oneshot::Sender<CurrentDataResponse>)>(1);
+        let (tx, mut rx) = roundtrip_channel(1);
 
         let task = tokio::spawn(
             async move {

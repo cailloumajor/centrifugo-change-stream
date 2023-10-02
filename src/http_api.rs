@@ -4,21 +4,15 @@ use axum::http::StatusCode;
 use axum::{routing, Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::oneshot;
 use tracing::{debug, error, instrument};
 
-use crate::model::{CurrentDataChannel, EnsureObject, HealthChannel};
+use crate::centrifugo::HealthChannel;
+use crate::db::CurrentDataChannel;
+use crate::model::EnsureObject;
 
 type StatusWithText = (StatusCode, &'static str);
 
 const INTERNAL_ERROR: StatusWithText = (StatusCode::INTERNAL_SERVER_ERROR, "internal server error");
-
-#[derive(Clone)]
-struct AppState {
-    namespace_prefix: ArcStr,
-    health_channel: HealthChannel,
-    current_data: CurrentDataChannel,
-}
 
 #[derive(Debug, Deserialize)]
 struct SubscribeRequest {
@@ -59,35 +53,31 @@ impl From<CentrifugoProxyError> for Json<Value> {
     }
 }
 
-pub(crate) fn app(
-    mongodb_namespace: &str,
-    health_channel: HealthChannel,
-    current_data: CurrentDataChannel,
-) -> Router {
-    let namespace_prefix = ArcStr::from(mongodb_namespace.to_owned() + ":");
+#[derive(Clone)]
+pub(crate) struct AppState {
+    pub(crate) namespace_prefix: ArcStr,
+    pub(crate) health_channel: HealthChannel,
+    pub(crate) current_data_channel: CurrentDataChannel,
+}
+
+pub(crate) fn app(state: AppState) -> Router {
     Router::new()
         .route("/health", routing::get(health_handler))
         .route(
             "/centrifugo/subscribe",
             routing::post(centrifugo_subscribe_handler),
         )
-        .with_state(AppState {
-            namespace_prefix,
-            health_channel,
-            current_data,
-        })
+        .with_state(state)
 }
 
 #[instrument(name = "health_api_handler", skip_all)]
 async fn health_handler(State(state): State<AppState>) -> Result<StatusCode, StatusWithText> {
-    let (tx, rx) = oneshot::channel();
-    state.health_channel.try_send(tx).map_err(|err| {
-        error!(kind = "request channel sending", %err);
-        INTERNAL_ERROR
-    })?;
-    rx.await
+    state
+        .health_channel
+        .roundtrip(())
+        .await
         .map_err(|err| {
-            error!(kind = "outcome channel receiving", %err);
+            error!(kind = "health channel roundtrip", %err);
             INTERNAL_ERROR
         })?
         .then_some(StatusCode::NO_CONTENT)
@@ -112,18 +102,12 @@ async fn centrifugo_subscribe_handler(
         return Ok(CentrifugoProxyError::BadChannelNamespace.into());
     };
 
-    let (response_tx, response_rx) = oneshot::channel();
-    state
-        .current_data
-        .try_send((channel_name.to_owned(), response_tx))
-        .map_err(|err| {
-            error!(kind = "request channel sending", %err);
-            INTERNAL_ERROR
-        })?;
-    let Ok(data) = response_rx
+    let Ok(data) = state
+        .current_data_channel
+        .roundtrip(channel_name.to_string())
         .await
         .map_err(|err| {
-            error!(kind = "outcome channel receiving", %err);
+            error!(kind = "current data channel roundtrip", %err);
             INTERNAL_ERROR
         })?
         .map(EnsureObject)
@@ -145,8 +129,9 @@ async fn centrifugo_subscribe_handler(
 mod tests {
     use axum::body::Body;
     use axum::http::Request;
-    use tokio::sync::mpsc;
     use tower::ServiceExt;
+
+    use crate::channel::roundtrip_channel;
 
     use super::*;
 
@@ -154,8 +139,12 @@ mod tests {
         use super::*;
 
         fn testing_fixture(health_channel: HealthChannel) -> (Router, Request<Body>) {
-            let (current_data, _) = mpsc::channel(1);
-            let app = app(Default::default(), health_channel, current_data);
+            let (current_data_channel, _) = roundtrip_channel(1);
+            let app = app(AppState {
+                namespace_prefix: Default::default(),
+                health_channel,
+                current_data_channel,
+            });
             let req = Request::builder()
                 .uri("/health")
                 .body(Body::empty())
@@ -164,31 +153,19 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn request_sending_error() {
-            let (tx, _) = mpsc::channel(1);
+        async fn roundtrip_error() {
+            let (tx, _) = roundtrip_channel(1);
             let (app, req) = testing_fixture(tx);
-            let res = app.oneshot(req).await.unwrap();
-            assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-
-        #[tokio::test]
-        async fn outcome_channel_receiving_error() {
-            let (tx, mut rx) = mpsc::channel(1);
-            let (app, req) = testing_fixture(tx);
-            tokio::spawn(async move {
-                // Consume and drop the response channel
-                let _ = rx.recv().await.expect("channel has been closed");
-            });
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
         }
 
         #[tokio::test]
         async fn health_error() {
-            let (tx, mut rx) = mpsc::channel(1);
+            let (tx, mut rx) = roundtrip_channel(1);
             let (app, req) = testing_fixture(tx);
             tokio::spawn(async move {
-                let response_tx = rx.recv().await.expect("channel has been closed");
+                let (_, response_tx) = rx.recv().await.expect("channel has been closed");
                 response_tx.send(false).expect("error sending response");
             });
             let res = app.oneshot(req).await.unwrap();
@@ -197,10 +174,10 @@ mod tests {
 
         #[tokio::test]
         async fn success() {
-            let (tx, mut rx) = mpsc::channel(1);
+            let (tx, mut rx) = roundtrip_channel(1);
             let (app, req) = testing_fixture(tx);
             tokio::spawn(async move {
-                let response_tx = rx.recv().await.expect("channel has been closed");
+                let (_, response_tx) = rx.recv().await.expect("channel has been closed");
                 response_tx.send(true).expect("error sending response");
             });
             let res = app.oneshot(req).await.unwrap();
@@ -215,14 +192,18 @@ mod tests {
 
         use super::*;
 
-        fn testing_app(current_data: CurrentDataChannel) -> Router {
-            let (centrifugo_request, _) = mpsc::channel(1);
-            app("ns", centrifugo_request, current_data)
+        fn testing_app(current_data_channel: CurrentDataChannel) -> Router {
+            let (health_channel, _) = roundtrip_channel(1);
+            app(AppState {
+                namespace_prefix: arcstr::literal!("ns"),
+                health_channel,
+                current_data_channel,
+            })
         }
 
         #[tokio::test]
         async fn unsupported_protocol() {
-            let (tx, _) = mpsc::channel(1);
+            let (tx, _) = roundtrip_channel(1);
             let app = testing_app(tx);
             let req = Request::post("/centrifugo/subscribe")
                 .header("Content-Type", "application/json")
@@ -242,7 +223,7 @@ mod tests {
 
         #[tokio::test]
         async fn unsupported_encoding() {
-            let (tx, _) = mpsc::channel(1);
+            let (tx, _) = roundtrip_channel(1);
             let app = testing_app(tx);
             let req = Request::post("/centrifugo/subscribe")
                 .header("Content-Type", "application/json")
@@ -262,7 +243,7 @@ mod tests {
 
         #[tokio::test]
         async fn bad_channel_namespace() {
-            let (tx, _) = mpsc::channel(1);
+            let (tx, _) = roundtrip_channel(1);
             let app = testing_app(tx);
             let req = Request::post("/centrifugo/subscribe")
                 .header("Content-Type", "application/json")
@@ -281,27 +262,9 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn request_sending_error() {
-            let (tx, _) = mpsc::channel(1);
+        async fn roundtrip_error() {
+            let (tx, _) = roundtrip_channel(1);
             let app = testing_app(tx);
-            let req = Request::post("/centrifugo/subscribe")
-                .header("Content-Type", "application/json")
-                .body(Body::from(
-                    r#"{"protocol":"json","encoding":"json","channel":"ns:chan"}"#,
-                ))
-                .unwrap();
-            let res = app.oneshot(req).await.unwrap();
-            assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        }
-
-        #[tokio::test]
-        async fn outcome_channel_receiving_error() {
-            let (tx, mut rx) = mpsc::channel(1);
-            let app = testing_app(tx);
-            tokio::spawn(async move {
-                // Consume and drop the response channel
-                let _ = rx.recv().await.expect("channel has been closed");
-            });
             let req = Request::post("/centrifugo/subscribe")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
@@ -314,7 +277,7 @@ mod tests {
 
         #[tokio::test]
         async fn current_data_error() {
-            let (tx, mut rx) = mpsc::channel(1);
+            let (tx, mut rx) = roundtrip_channel(1);
             let app = testing_app(tx);
             tokio::spawn(async move {
                 let (_, response_tx) = rx.recv().await.unwrap();
@@ -338,7 +301,7 @@ mod tests {
 
         #[tokio::test]
         async fn success_no_data() {
-            let (tx, mut rx) = mpsc::channel(1);
+            let (tx, mut rx) = roundtrip_channel(1);
             let app = testing_app(tx);
             tokio::spawn(async move {
                 let (_, response_tx) = rx.recv().await.unwrap();
@@ -359,7 +322,7 @@ mod tests {
 
         #[tokio::test]
         async fn success_with_data() {
-            let (tx, mut rx) = mpsc::channel(1);
+            let (tx, mut rx) = roundtrip_channel(1);
             let app = testing_app(tx);
             let mut tags_update_data = MongoDBData::with_capacity(2);
             tags_update_data.insert_value("first".into(), Bson::Int32(9));

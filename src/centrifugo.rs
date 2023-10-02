@@ -3,12 +3,13 @@ use clap::Args;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, info_span, instrument, Instrument};
 use url::Url;
 
-use crate::model::{HealthChannel, TagsUpdateChannel, UpdateEvent};
+use crate::channel::{roundtrip_channel, RoundtripSender};
+use crate::model::UpdateEvent;
 
 #[derive(Args)]
 #[group(skip)]
@@ -21,6 +22,10 @@ pub(crate) struct Config {
     #[arg(env, long)]
     centrifugo_api_key: String,
 }
+
+pub(crate) type HealthChannel = RoundtripSender<(), bool>;
+
+pub(crate) type TagsUpdateChannel = mpsc::Sender<UpdateEvent>;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,14 +114,14 @@ impl Client {
     }
 
     pub(crate) fn handle_health(&self) -> (HealthChannel, JoinHandle<()>) {
-        let (tx, mut rx) = mpsc::channel::<oneshot::Sender<bool>>(1);
+        let (tx, mut rx) = roundtrip_channel(1);
         let cloned_self = self.clone();
 
         let task = tokio::spawn(
             async move {
                 info!(status = "started");
 
-                while let Some(response_tx) = rx.recv().await {
+                while let Some((_, response_tx)) = rx.recv().await {
                     let outcome = cloned_self.publish("_", ()).await.is_ok();
                     if response_tx.send(outcome).is_err() {
                         error!(kind = "response channel sending");

@@ -1,4 +1,5 @@
 use anyhow::Context as _;
+use arcstr::ArcStr;
 use axum::Server;
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, Verbosity};
@@ -13,6 +14,7 @@ use tracing_log::LogTracer;
 use centrifugo_change_stream::CommonArgs;
 
 mod centrifugo;
+mod channel;
 mod db;
 mod http_api;
 mod level_filter;
@@ -71,19 +73,23 @@ async fn main() -> anyhow::Result<()> {
     let signals_handle = signals.handle();
 
     let centrifugo_client = centrifugo::Client::new(&args.centrifugo);
-    let (tags_update_tx, tags_update_task) =
+    let (tags_update_channel, tags_update_task) =
         centrifugo_client.handle_tags_update(args.tags_update_buffer.into());
-    let (health_tx, health_task) = centrifugo_client.handle_health();
+    let (health_channel, health_task) = centrifugo_client.handle_health();
 
     let shutdown_token = CancellationToken::new();
 
     let mongodb_collection = db::create_collection(&args.mongodb).await?;
     let change_stream_task = mongodb_collection
-        .handle_change_stream(tags_update_tx, shutdown_token.clone())
+        .handle_change_stream(tags_update_channel, shutdown_token.clone())
         .await?;
-    let (current_data_tx, current_data_task) = mongodb_collection.handle_current_data();
+    let (current_data_channel, current_data_task) = mongodb_collection.handle_current_data();
 
-    let app = http_api::app(&mongodb_collection.namespace(), health_tx, current_data_tx);
+    let app = http_api::app(http_api::AppState {
+        namespace_prefix: ArcStr::from(mongodb_collection.namespace() + ":"),
+        health_channel,
+        current_data_channel,
+    });
     let cloned_token = shutdown_token.clone();
     async move {
         info!(addr = %args.common.listen_address, msg = "start listening");
