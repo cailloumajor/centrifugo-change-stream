@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.0.10](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.9...v4.0.10) (2023-10-02)
+
+
+### Bug Fixes
+
+* implement roundtrip channel ([fe01d52](https://github.com/cailloumajor/centrifugo-change-stream/commit/fe01d528beccc2780043a86fca29aa369e2b9318))
+* refactor shutdown logic ([5dedf1a](https://github.com/cailloumajor/centrifugo-change-stream/commit/5dedf1aaf17430cb77636273e3d0c4063d089069))
+* remove unused code ([230387f](https://github.com/cailloumajor/centrifugo-change-stream/commit/230387f43cab4114aac14aafd3795b67278755b0))
+
 ## [4.0.9](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.8...v4.0.9) (2023-10-02)
 
 
