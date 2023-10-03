@@ -1,7 +1,5 @@
 use("testdb");
 
-db.disableFreeMonitoring();
-
 const genTimestamp = () =>
     new Date(Date.now() - Math.floor(Math.random() * 60) * 1000);
 
