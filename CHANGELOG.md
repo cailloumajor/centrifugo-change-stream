@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.0.11](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.10...v4.0.11) (2023-10-09)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate reqwest to 0.11.22 ([8440b3d](https://github.com/cailloumajor/centrifugo-change-stream/commit/8440b3d6f536467dcdfae0f48513bc0cf02512ce))
+* **deps:** update rust crate tokio to 1.33.0 ([1a19f57](https://github.com/cailloumajor/centrifugo-change-stream/commit/1a19f57af67a505edafac4fad0a31a314589643c))
+* **deps:** update rust docker tag to v1.73.0 ([ef10382](https://github.com/cailloumajor/centrifugo-change-stream/commit/ef10382252b07d70983f2144674dcb6966df3c79))
+
 ## [4.0.10](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.9...v4.0.10) (2023-10-02)
 
 
