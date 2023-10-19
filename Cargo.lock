@@ -250,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "centrifugo-change-stream"
-version = "4.0.11"
+version = "4.0.12"
 dependencies = [
  "anyhow",
  "arcstr",

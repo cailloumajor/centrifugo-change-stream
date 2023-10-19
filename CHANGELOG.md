@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.0.12](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.11...v4.0.12) (2023-10-19)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate serde to 1.0.189 ([09d64c1](https://github.com/cailloumajor/centrifugo-change-stream/commit/09d64c1f347375a9a8db39e6485f5e4fd86e2871))
+* **deps:** update rust crate tracing to 0.1.39 ([4ea60f5](https://github.com/cailloumajor/centrifugo-change-stream/commit/4ea60f532324b403366a44b7588f4574535ca1ce))
+* **deps:** update rust crate tracing to 0.1.40 ([7cb5add](https://github.com/cailloumajor/centrifugo-change-stream/commit/7cb5add366444626102c40c9e96102fbd4665636))
+* **deps:** update tonistiigi/xx docker tag to v1.3.0 ([492fbce](https://github.com/cailloumajor/centrifugo-change-stream/commit/492fbcec0625f979a45abee626b77a4ed909284e))
+
 ## [4.0.11](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.10...v4.0.11) (2023-10-09)
 
 
