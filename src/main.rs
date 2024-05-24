@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::Context as _;
-use axum::Server;
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, Verbosity};
 use futures_util::StreamExt;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::low_level::signal_name;
 use signal_hook_tokio::Signals;
+use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, info_span, instrument, Instrument};
 use tracing_log::LogTracer;
@@ -85,10 +85,18 @@ async fn main() -> anyhow::Result<()> {
         current_data_channel,
     });
     async move {
-        info!(addr = %args.common.listen_address, msg = "start listening");
-        if let Err(err) = Server::bind(&args.common.listen_address)
-            .serve(app.into_make_service())
-            .with_graceful_shutdown(shutdown_token.cancelled())
+        let listener = match TcpListener::bind(&args.common.listen_address).await {
+            Ok(listener) => {
+                info!(addr = %args.common.listen_address, msg = "listening");
+                listener
+            }
+            Err(err) => {
+                error!(kind="TCP listen", %err);
+                return;
+            }
+        };
+        if let Err(err) = axum::serve(listener, app.into_make_service())
+            .with_graceful_shutdown(shutdown_token.cancelled_owned())
             .await
         {
             error!(kind = "HTTP server", %err);
