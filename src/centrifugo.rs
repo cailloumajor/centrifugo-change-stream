@@ -1,4 +1,5 @@
-use arcstr::ArcStr;
+use std::sync::Arc;
+
 use clap::Args;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
@@ -37,14 +38,14 @@ enum PublishResponse {
 #[derive(Clone)]
 pub(crate) struct Client {
     base_url: Url,
-    api_key: ArcStr,
+    api_key: Arc<str>,
     http: HttpClient,
 }
 
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
         let base_url = config.centrifugo_url.clone();
-        let api_key = ArcStr::from(&config.centrifugo_api_key);
+        let api_key = Arc::from(config.centrifugo_api_key.as_str());
         let http = HttpClient::new();
 
         Self {
@@ -66,7 +67,7 @@ impl Client {
         let resp = self
             .http
             .post(url)
-            .header("X-API-Key", self.api_key.as_str())
+            .header("X-API-Key", self.api_key.as_ref())
             .json(&json)
             .send()
             .await
