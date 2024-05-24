@@ -128,7 +128,7 @@ async fn centrifugo_subscribe_handler(
 
 #[cfg(test)]
 mod tests {
-    use axum::body::Body;
+    use axum::body::{to_bytes, Body};
     use axum::http::Request;
     use tower::ServiceExt;
 
@@ -215,7 +215,7 @@ mod tests {
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::OK);
             assert_eq!(res.headers()["Content-Type"], "application/json");
-            let body = hyper::body::to_bytes(res).await.unwrap();
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
             assert_eq!(
                 body,
                 r#"{"error":{"code":1000,"message":"unsupported protocol"}}"#
@@ -235,7 +235,7 @@ mod tests {
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::OK);
             assert_eq!(res.headers()["Content-Type"], "application/json");
-            let body = hyper::body::to_bytes(res).await.unwrap();
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
             assert_eq!(
                 body,
                 r#"{"error":{"code":1001,"message":"unsupported encoding"}}"#
@@ -255,7 +255,7 @@ mod tests {
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::OK);
             assert_eq!(res.headers()["Content-Type"], "application/json");
-            let body = hyper::body::to_bytes(res).await.unwrap();
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
             assert_eq!(
                 body,
                 r#"{"error":{"code":1002,"message":"bad channel namespace"}}"#
@@ -293,7 +293,7 @@ mod tests {
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::OK);
             assert_eq!(res.headers()["Content-Type"], "application/json");
-            let body = hyper::body::to_bytes(res).await.unwrap();
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
             assert_eq!(
                 body,
                 r#"{"error":{"code":1003,"message":"internal error"}}"#
@@ -317,7 +317,7 @@ mod tests {
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::OK);
             assert_eq!(res.headers()["Content-Type"], "application/json");
-            let body = hyper::body::to_bytes(res).await.unwrap();
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
             assert_eq!(body, r#"{"result":{"data":{}}}"#);
         }
 
@@ -345,7 +345,7 @@ mod tests {
             let res = app.oneshot(req).await.unwrap();
             assert_eq!(res.status(), StatusCode::OK);
             assert_eq!(res.headers()["Content-Type"], "application/json");
-            let body = hyper::body::to_bytes(res).await.unwrap();
+            let body = to_bytes(res.into_body(), 1024).await.unwrap();
             let body = String::from_utf8(body.to_vec()).unwrap();
             assert!(body.starts_with(r#"{"result":{"data":{"#));
             assert!(body.contains(r#""first":9"#));
