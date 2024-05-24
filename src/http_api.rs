@@ -1,4 +1,5 @@
-use arcstr::ArcStr;
+use std::sync::Arc;
+
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::{routing, Json, Router};
@@ -55,7 +56,7 @@ impl From<CentrifugoProxyError> for Json<Value> {
 
 #[derive(Clone)]
 pub(crate) struct AppState {
-    pub(crate) namespace_prefix: ArcStr,
+    pub(crate) namespace_prefix: Arc<str>,
     pub(crate) health_channel: HealthChannel,
     pub(crate) current_data_channel: CurrentDataChannel,
 }
@@ -98,7 +99,7 @@ async fn centrifugo_subscribe_handler(
         return Ok(CentrifugoProxyError::UnsupportedEncoding.into());
     }
 
-    let Some(channel_name) = req.channel.strip_prefix(state.namespace_prefix.as_str()) else {
+    let Some(channel_name) = req.channel.strip_prefix(state.namespace_prefix.as_ref()) else {
         return Ok(CentrifugoProxyError::BadChannelNamespace.into());
     };
 
@@ -141,7 +142,7 @@ mod tests {
         fn testing_fixture(health_channel: HealthChannel) -> (Router, Request<Body>) {
             let (current_data_channel, _) = roundtrip_channel(1);
             let app = app(AppState {
-                namespace_prefix: Default::default(),
+                namespace_prefix: Arc::from(""),
                 health_channel,
                 current_data_channel,
             });
@@ -195,7 +196,7 @@ mod tests {
         fn testing_app(current_data_channel: CurrentDataChannel) -> Router {
             let (health_channel, _) = roundtrip_channel(1);
             app(AppState {
-                namespace_prefix: arcstr::literal!("ns"),
+                namespace_prefix: Arc::from("ns"),
                 health_channel,
                 current_data_channel,
             })

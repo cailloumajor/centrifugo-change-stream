@@ -1,5 +1,6 @@
+use std::sync::Arc;
+
 use anyhow::Context as _;
-use arcstr::ArcStr;
 use axum::Server;
 use clap::Parser;
 use clap_verbosity_flag::{InfoLevel, Verbosity};
@@ -79,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let (current_data_channel, current_data_task) = mongodb_collection.handle_current_data();
 
     let app = http_api::app(http_api::AppState {
-        namespace_prefix: ArcStr::from(mongodb_collection.namespace() + ":"),
+        namespace_prefix: Arc::from(mongodb_collection.namespace() + ":"),
         health_channel,
         current_data_channel,
     });
