@@ -79,9 +79,9 @@ Options:
       --tags-update-buffer <TAGS_UPDATE_BUFFER>
           Size of the tags update channel buffer [env: TAGS_UPDATE_BUFFER=] [default: 10]
   -v, --verbose...
-          More output per occurrence
+          Increase logging verbosity
   -q, --quiet...
-          Less output per occurrence
+          Decrease logging verbosity
   -h, --help
           Print help
 ```
