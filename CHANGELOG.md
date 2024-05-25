@@ -1,5 +1,27 @@
 # Changelog
 
+## [4.0.13](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.12...v4.0.13) (2024-05-25)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate anyhow to v1.0.86 ([c0a1974](https://github.com/cailloumajor/centrifugo-change-stream/commit/c0a197456ae73a61dc90ea2318f9c5e01a737e9e))
+* **deps:** update rust crate clap to v4.5.4 ([dfaa77b](https://github.com/cailloumajor/centrifugo-change-stream/commit/dfaa77bea56b6f1c1418877671b2e0e983a07b84))
+* **deps:** update rust crate clap-verbosity-flag to v2.2.0 ([4bab7f2](https://github.com/cailloumajor/centrifugo-change-stream/commit/4bab7f25074ed8b65c1cd714eb87f3520f25df8f))
+* **deps:** update rust crate futures-util to v0.3.30 ([aced64e](https://github.com/cailloumajor/centrifugo-change-stream/commit/aced64efb4f9a85c092dd42ec72d028b9c86dc96))
+* **deps:** update rust crate mongodb to v2.8.2 ([d198f81](https://github.com/cailloumajor/centrifugo-change-stream/commit/d198f818c5a1d3ef5a4b3aad2ae3b3e259c18cb1))
+* **deps:** update rust crate reqwest to 0.12.0 ([a60fa5b](https://github.com/cailloumajor/centrifugo-change-stream/commit/a60fa5b9877bb6828497e7ee18ce43c7e4741cd3))
+* **deps:** update rust crate serde to v1.0.202 ([d1a5d44](https://github.com/cailloumajor/centrifugo-change-stream/commit/d1a5d4433e8c8791fecc27c1c2231e6da64d4094))
+* **deps:** update rust crate serde_json to v1.0.117 ([0e9fee7](https://github.com/cailloumajor/centrifugo-change-stream/commit/0e9fee771a612e5cb77e9b67dba3b0f47ea49fe2))
+* **deps:** update rust crate tokio to v1.37.0 ([93916dd](https://github.com/cailloumajor/centrifugo-change-stream/commit/93916ddd8ea6dcd836d32a44bddd23992d6c213f))
+* **deps:** update rust crate tokio-util to v0.7.11 ([9e91865](https://github.com/cailloumajor/centrifugo-change-stream/commit/9e918657d150146d458987d64f2532c769816793))
+* **deps:** update rust crate url to v2.5.0 ([7d3dd44](https://github.com/cailloumajor/centrifugo-change-stream/commit/7d3dd44ec8cd54531abbfd9520315794899d7e6b))
+* **deps:** update rust docker tag to v1.78.0 ([2ac3e1c](https://github.com/cailloumajor/centrifugo-change-stream/commit/2ac3e1c22fd867823c7c003ad5dd1fd242908192))
+* **deps:** update tokio-tracing monorepo ([3fce4bc](https://github.com/cailloumajor/centrifugo-change-stream/commit/3fce4bc6d596e4425d7708bb137d7ed8918d58aa))
+* **deps:** update tonistiigi/xx docker tag to v1.4.0 ([ceafcea](https://github.com/cailloumajor/centrifugo-change-stream/commit/ceafcea6a0e967ba6a50eff181fea1a0cef3095c))
+* **deps:** upgrade axum ([7131243](https://github.com/cailloumajor/centrifugo-change-stream/commit/71312435ea5f5c2afe971e621af89ea9c904fa86))
+* remove usage of arcstr ([d107eed](https://github.com/cailloumajor/centrifugo-change-stream/commit/d107eed234b22786bf5efa4b6714316ed436adf8))
+
 ## [4.0.12](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.11...v4.0.12) (2023-10-19)
 
 
