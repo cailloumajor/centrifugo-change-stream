@@ -252,7 +252,7 @@ checksum = "41c270e7540d725e65ac7f1b212ac8ce349719624d7bcff99f8e2e488e8cf03f"
 
 [[package]]
 name = "centrifugo-change-stream"
-version = "4.0.12"
+version = "4.0.13"
 dependencies = [
  "anyhow",
  "axum",
