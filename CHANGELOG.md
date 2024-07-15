@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.14](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.13...v4.0.14) (2024-07-15)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate serde to v1.0.203 ([f30e598](https://github.com/cailloumajor/centrifugo-change-stream/commit/f30e5983d86fba0dfcf3cba9fa03c23bcdeec07a))
+
 ## [4.0.13](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.12...v4.0.13) (2024-05-25)
 
 
