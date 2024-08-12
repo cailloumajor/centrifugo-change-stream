@@ -6,47 +6,47 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.75"
-clap-verbosity-flag = "2.0.1"
-futures-util = "0.3.28"
-mongodb = "2.7.0"
-serde = { version = "1.0.189", features = [ "derive" ] }
-serde_json = "1.0.107"
-signal-hook = { version = "0.3.17", default-features = false }
-signal-hook-tokio = { version = "0.3.1", features = [ "futures-v0_3" ] }
-tokio-util = "0.7.9"
-tracing = "0.1.40"
-url = "2.4.1"
+anyhow = "1.0"
+clap-verbosity-flag = "2.0"
+futures-util = "0.3"
+mongodb = "2.7"
+serde = { version = "1.0", features = [ "derive" ] }
+serde_json = "1.0"
+signal-hook = { version = "0.3", default-features = false }
+signal-hook-tokio = { version = "0.3", features = [ "futures-v0_3" ] }
+tokio-util = "0.7"
+tracing = "0.1"
+url = "2.4"
 
 [dependencies.axum]
-version = "0.7.5"
+version = "0.7"
 default-features = false
 features = [ "http1", "json", "tokio" ]
 
 [dependencies.clap]
-version = "4.4.6"
+version = "4.4"
 default-features = false
 features = [ "std", "help", "usage", "error-context", "derive", "env" ]
 
 [dependencies.reqwest]
-version = "0.12.0"
+version = "0.12"
 default-features = false
 features = [ "json" ]
 
 [dependencies.tokio]
-version = "1.33.0"
+version = "1.33"
 features = [ "macros", "rt-multi-thread", "sync" ]
 
 [dependencies.tracing-log]
-version = "0.2.0"
+version = "0.2"
 default-features = false
 features = [ "std", "log-tracer" ]
 
 [dependencies.tracing-subscriber]
-version = "0.3.17"
+version = "0.3"
 default-features = false
 features = [ "ansi", "fmt", "parking_lot", "smallvec", "std" ]
 
 [dev-dependencies]
-mockito = "1.2.0"
-tower = { version = "0.4.13", default-features = false }
+mockito = "1.2"
+tower = { version = "0.4", default-features = false }
