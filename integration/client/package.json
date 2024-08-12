@@ -2,6 +2,6 @@
   "private": true,
   "devDependencies": {
     "centrifuge": "5.1",
-    "ws": "8.17"
+    "ws": "8.18"
   }
 }
