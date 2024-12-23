@@ -1,5 +1,39 @@
 # Changelog
 
+## [4.0.15](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.14...v4.0.15) (2024-12-23)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate anyhow to v1.0.93 ([#379](https://github.com/cailloumajor/centrifugo-change-stream/issues/379)) ([58fc499](https://github.com/cailloumajor/centrifugo-change-stream/commit/58fc4997c1328be8ecab5dfd2009cce2633d72b4))
+* **deps:** update rust crate anyhow to v1.0.94 ([#391](https://github.com/cailloumajor/centrifugo-change-stream/issues/391)) ([1058962](https://github.com/cailloumajor/centrifugo-change-stream/commit/105896285da4acc735514a5ab9323663032bb7f9))
+* **deps:** update rust crate anyhow to v1.0.95 ([#411](https://github.com/cailloumajor/centrifugo-change-stream/issues/411)) ([de81443](https://github.com/cailloumajor/centrifugo-change-stream/commit/de81443197a2e31f3d8c930c88843dcce91004b3))
+* **deps:** update rust crate axum to v0.7.9 ([#387](https://github.com/cailloumajor/centrifugo-change-stream/issues/387)) ([de092f4](https://github.com/cailloumajor/centrifugo-change-stream/commit/de092f4e6e917584fee909f29e3e4df110470e74))
+* **deps:** update rust crate clap to v4.5.22 ([#388](https://github.com/cailloumajor/centrifugo-change-stream/issues/388)) ([21bf9c5](https://github.com/cailloumajor/centrifugo-change-stream/commit/21bf9c5956a3906bc6eb6c66ab1e711605ea0800))
+* **deps:** update rust crate clap to v4.5.23 ([#402](https://github.com/cailloumajor/centrifugo-change-stream/issues/402)) ([91326c9](https://github.com/cailloumajor/centrifugo-change-stream/commit/91326c98bc107effc478f75abc78344b310420ef))
+* **deps:** update rust crate clap-verbosity-flag to v2.2.3 ([#389](https://github.com/cailloumajor/centrifugo-change-stream/issues/389)) ([a667ac1](https://github.com/cailloumajor/centrifugo-change-stream/commit/a667ac1a5b3fbbf197469b805d7dd9bba405e185))
+* **deps:** update rust crate clap-verbosity-flag to v3 ([5641df6](https://github.com/cailloumajor/centrifugo-change-stream/commit/5641df6375a08db32aa5f839fef84e72c8b1b3e2))
+* **deps:** update rust crate clap-verbosity-flag to v3 ([ba4b3d0](https://github.com/cailloumajor/centrifugo-change-stream/commit/ba4b3d029c974eb98142f07e6b32219b2988ac2e))
+* **deps:** update rust crate clap-verbosity-flag to v3.0.2 ([#409](https://github.com/cailloumajor/centrifugo-change-stream/issues/409)) ([4bf17b4](https://github.com/cailloumajor/centrifugo-change-stream/commit/4bf17b4c1dbaf31f31f277a6ae9d2af6b9dd76d3))
+* **deps:** update rust crate reqwest to v0.12.9 ([#384](https://github.com/cailloumajor/centrifugo-change-stream/issues/384)) ([2222357](https://github.com/cailloumajor/centrifugo-change-stream/commit/2222357a677b9134672695bd8b3c246855dc84cd))
+* **deps:** update rust crate serde to v1.0.215 ([#381](https://github.com/cailloumajor/centrifugo-change-stream/issues/381)) ([e5718de](https://github.com/cailloumajor/centrifugo-change-stream/commit/e5718dec9efd33fa241b7603a7cfb610af20eb36))
+* **deps:** update rust crate serde to v1.0.216 ([#406](https://github.com/cailloumajor/centrifugo-change-stream/issues/406)) ([9065a52](https://github.com/cailloumajor/centrifugo-change-stream/commit/9065a5281179811aadfa3b22d9bdcfef0bbef24e))
+* **deps:** update rust crate serde_json to v1.0.133 ([#390](https://github.com/cailloumajor/centrifugo-change-stream/issues/390)) ([5c3ce70](https://github.com/cailloumajor/centrifugo-change-stream/commit/5c3ce70e14a4af8fb00652645b17973d9816b90e))
+* **deps:** update rust crate serde_json to v1.0.134 ([#410](https://github.com/cailloumajor/centrifugo-change-stream/issues/410)) ([4442587](https://github.com/cailloumajor/centrifugo-change-stream/commit/444258735fbc724dca3704561c3e52116bf75000))
+* **deps:** update rust crate tokio to v1.42.0 ([92936b4](https://github.com/cailloumajor/centrifugo-change-stream/commit/92936b4ed048ef3bf7dcbd0e39f5940b9ff6c82e))
+* **deps:** update rust crate tokio to v1.42.0 ([ec80129](https://github.com/cailloumajor/centrifugo-change-stream/commit/ec801290b0346718bb1f407372762e414550e529))
+* **deps:** update rust crate tokio-util to v0.7.13 ([#398](https://github.com/cailloumajor/centrifugo-change-stream/issues/398)) ([a8b7cfa](https://github.com/cailloumajor/centrifugo-change-stream/commit/a8b7cfa1b614e4d14d116a4c47751e102ce7dc51))
+* **deps:** update rust crate url to v2.5.4 ([#399](https://github.com/cailloumajor/centrifugo-change-stream/issues/399)) ([3a7dd7f](https://github.com/cailloumajor/centrifugo-change-stream/commit/3a7dd7f164b1364d6510b24e800edb3ed8e7801c))
+* **deps:** update rust docker tag to v1.82.0 ([81581d8](https://github.com/cailloumajor/centrifugo-change-stream/commit/81581d8f03015653462350fb5873a4dbbc872796))
+* **deps:** update rust docker tag to v1.82.0 ([916c99e](https://github.com/cailloumajor/centrifugo-change-stream/commit/916c99ee4a31c97f560ca596d301a8db9ebe9839))
+* **deps:** update rust docker tag to v1.83.0 ([790ab92](https://github.com/cailloumajor/centrifugo-change-stream/commit/790ab92eaa17945338cd4339e91e211987b089e6))
+* **deps:** update rust docker tag to v1.83.0 ([8ca698a](https://github.com/cailloumajor/centrifugo-change-stream/commit/8ca698a1169e2d3aa3875a4f18a523f6a33a7815))
+* **deps:** update tokio-tracing monorepo ([#400](https://github.com/cailloumajor/centrifugo-change-stream/issues/400)) ([394884e](https://github.com/cailloumajor/centrifugo-change-stream/commit/394884e05b715c3940197147c6a428c8e7599b1b))
+* **deps:** update tonistiigi/xx docker tag to v1.6.0 ([df2efcd](https://github.com/cailloumajor/centrifugo-change-stream/commit/df2efcd5a96300bbead7abd8c34e13d203b1f1e3))
+* **deps:** update tonistiigi/xx docker tag to v1.6.0 ([283b5af](https://github.com/cailloumajor/centrifugo-change-stream/commit/283b5af2a84cff0bdb8102fcc55046c5b35734c7))
+* **deps:** update tonistiigi/xx docker tag to v1.6.1 ([51a1af8](https://github.com/cailloumajor/centrifugo-change-stream/commit/51a1af8659c9455aa1457c7443eb61cc161e3f78))
+* **deps:** update tonistiigi/xx docker tag to v1.6.1 ([ac1e66c](https://github.com/cailloumajor/centrifugo-change-stream/commit/ac1e66c8814bf3bb06edd65e359998359e9c6e9d))
+
 ## [4.0.14](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.13...v4.0.14) (2024-09-28)
 
 
