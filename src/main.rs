@@ -18,10 +18,7 @@ mod centrifugo;
 mod channel;
 mod db;
 mod http_api;
-mod level_filter;
 mod model;
-
-use level_filter::VerbosityLevelFilter;
 
 #[derive(Parser)]
 struct Args {
@@ -57,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
-        .with_max_level(VerbosityLevelFilter::from(&args.verbose))
+        .with_max_level(args.verbose.tracing_level())
         .init();
 
     LogTracer::init_with_filter(args.verbose.log_level_filter())?;
