@@ -50,7 +50,8 @@ impl MongoDBCollection {
         let pipeline = [doc! { "$match": { "operationType": "update" } }];
         let mut change_stream = self
             .0
-            .watch(pipeline, None)
+            .watch()
+            .pipeline(pipeline)
             .await
             .context("error starting change stream")?
             .with_type::<UpdateEvent>()
@@ -95,7 +96,7 @@ impl MongoDBCollection {
                     debug!(%document_id);
 
                     let filter = doc! { "_id": document_id };
-                    let found = collection.find_one(filter, None).await.map_err(|err| {
+                    let found = collection.find_one(filter).await.map_err(|err| {
                         error!(kind = "finding document", %err);
                     });
                     if response_tx.send(found).is_err() {
