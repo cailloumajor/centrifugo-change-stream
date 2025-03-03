@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::{routing, Json, Router};
+use axum::{Json, Router, routing};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tracing::{debug, error, instrument};
 
 use crate::centrifugo::HealthChannel;
@@ -128,7 +128,7 @@ async fn centrifugo_subscribe_handler(
 
 #[cfg(test)]
 mod tests {
-    use axum::body::{to_bytes, Body};
+    use axum::body::{Body, to_bytes};
     use axum::http::Request;
     use tower::ServiceExt;
 

@@ -9,7 +9,7 @@ use signal_hook::low_level::signal_name;
 use signal_hook_tokio::Signals;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, info_span, instrument, Instrument};
+use tracing::{Instrument, error, info, info_span, instrument};
 use tracing_log::LogTracer;
 
 use centrifugo_change_stream::CommonArgs;
