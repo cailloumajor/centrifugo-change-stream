@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use clap::Parser;
 
 use centrifugo_change_stream::CommonArgs;

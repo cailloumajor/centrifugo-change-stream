@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, info_span, instrument, Instrument};
+use tracing::{Instrument, debug, error, info, info_span, instrument};
 use url::Url;
 
-use crate::channel::{roundtrip_channel, RoundtripSender};
+use crate::channel::{RoundtripSender, roundtrip_channel};
 use crate::model::UpdateEvent;
 
 #[derive(Args)]

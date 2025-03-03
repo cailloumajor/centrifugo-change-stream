@@ -1,17 +1,17 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::{Context as _, anyhow};
 use clap::Args;
 use futures_util::StreamExt;
-use mongodb::bson::{doc, Document};
+use mongodb::bson::{Document, doc};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, info_span, instrument, Instrument};
+use tracing::{Instrument, debug, error, info, info_span, instrument};
 
 use crate::centrifugo::TagsUpdateChannel;
-use crate::channel::{roundtrip_channel, RoundtripSender};
+use crate::channel::{RoundtripSender, roundtrip_channel};
 use crate::model::{MongoDBData, UpdateEvent};
 
 const APP_NAME: &str = concat!(env!("CARGO_PKG_NAME"), " (", env!("CARGO_PKG_VERSION"), ")");

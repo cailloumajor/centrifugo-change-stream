@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use mongodb::bson::{Bson, DateTime};
 use mongodb::Namespace;
+use mongodb::bson::{Bson, DateTime};
 use serde::ser::{self, SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info_span};
