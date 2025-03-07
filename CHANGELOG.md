@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.16](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.15...v4.0.16) (2025-03-07)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate mongodb to v3.2.2 ([#456](https://github.com/cailloumajor/centrifugo-change-stream/issues/456)) ([b296f2a](https://github.com/cailloumajor/centrifugo-change-stream/commit/b296f2a6facd5e795ec7e61e280cbbdc05e259b8))
+
 ## [4.0.15](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.14...v4.0.15) (2025-03-04)
 
 
