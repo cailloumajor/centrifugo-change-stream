@@ -1,10 +1,7 @@
-FROM node:22.14
+FROM denoland/deno:distroless-2.2.6
 
-USER node
-WORKDIR /home/node/app
+WORKDIR /app
 
-COPY package.json test.mjs ./
+COPY main.ts ./
 
-RUN yarn install --no-lockfile && yarn cache clean
-
-CMD ["node", "test.mjs"]
+CMD ["run", "--no-lock", "--allow-net", "main.ts"]
