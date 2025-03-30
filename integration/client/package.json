@@ -1,7 +1,0 @@
-{
-  "private": true,
-  "devDependencies": {
-    "centrifuge": "5.3",
-    "ws": "8.18"
-  }
-}
