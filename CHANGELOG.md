@@ -1,5 +1,20 @@
 # Changelog
 
+## [4.0.18](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.17...v4.0.18) (2025-05-09)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate anyhow to v1.0.98 ([#486](https://github.com/cailloumajor/centrifugo-change-stream/issues/486)) ([38af491](https://github.com/cailloumajor/centrifugo-change-stream/commit/38af491686b58c98fcadb4cb5a5e05f4f01e7b58))
+* **deps:** update rust crate axum to v0.8.4 ([#493](https://github.com/cailloumajor/centrifugo-change-stream/issues/493)) ([b7f4033](https://github.com/cailloumajor/centrifugo-change-stream/commit/b7f4033178101e45ee723b2f072fcd8d7c10a366))
+* **deps:** update rust crate clap to v4.5.35 ([#478](https://github.com/cailloumajor/centrifugo-change-stream/issues/478)) ([58d9f43](https://github.com/cailloumajor/centrifugo-change-stream/commit/58d9f4316c0495c467fdf7e040c49779e5d8dd99))
+* **deps:** update rust crate clap to v4.5.36 ([#485](https://github.com/cailloumajor/centrifugo-change-stream/issues/485)) ([bd64591](https://github.com/cailloumajor/centrifugo-change-stream/commit/bd645914db19589d1ef5b2a9f7895ad6451b9bc2))
+* **deps:** update rust crate clap to v4.5.37 ([#489](https://github.com/cailloumajor/centrifugo-change-stream/issues/489)) ([998daec](https://github.com/cailloumajor/centrifugo-change-stream/commit/998daec56eca7a99ca758d587506426b2731da62))
+* **deps:** update rust crate signal-hook to v0.3.18 ([#496](https://github.com/cailloumajor/centrifugo-change-stream/issues/496)) ([9a1a39e](https://github.com/cailloumajor/centrifugo-change-stream/commit/9a1a39e1a536f031b8bb01abdb27b746571d4710))
+* **deps:** update rust crate tokio to v1.44.2 ([#482](https://github.com/cailloumajor/centrifugo-change-stream/issues/482)) ([1bb2cf0](https://github.com/cailloumajor/centrifugo-change-stream/commit/1bb2cf0d15e48a01b654b92b3b7e2a4a68b63591))
+* **deps:** update rust crate tokio to v1.45.0 ([#495](https://github.com/cailloumajor/centrifugo-change-stream/issues/495)) ([b7c1a06](https://github.com/cailloumajor/centrifugo-change-stream/commit/b7c1a069b120758a2574e0880516184960b5c14e))
+* **deps:** update rust crate tokio-util to v0.7.15 ([#491](https://github.com/cailloumajor/centrifugo-change-stream/issues/491)) ([b1685b5](https://github.com/cailloumajor/centrifugo-change-stream/commit/b1685b524012ddac306a0e050b8357b35462f46c))
+
 ## [4.0.17](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.16...v4.0.17) (2025-03-30)
 
 
