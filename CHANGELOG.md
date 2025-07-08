@@ -1,5 +1,35 @@
 # Changelog
 
+## [4.0.18](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.17...v4.0.18) (2025-07-08)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate anyhow to v1.0.98 ([#486](https://github.com/cailloumajor/centrifugo-change-stream/issues/486)) ([38af491](https://github.com/cailloumajor/centrifugo-change-stream/commit/38af491686b58c98fcadb4cb5a5e05f4f01e7b58))
+* **deps:** update rust crate axum to v0.8.4 ([#493](https://github.com/cailloumajor/centrifugo-change-stream/issues/493)) ([b7f4033](https://github.com/cailloumajor/centrifugo-change-stream/commit/b7f4033178101e45ee723b2f072fcd8d7c10a366))
+* **deps:** update rust crate clap to v4.5.35 ([#478](https://github.com/cailloumajor/centrifugo-change-stream/issues/478)) ([58d9f43](https://github.com/cailloumajor/centrifugo-change-stream/commit/58d9f4316c0495c467fdf7e040c49779e5d8dd99))
+* **deps:** update rust crate clap to v4.5.36 ([#485](https://github.com/cailloumajor/centrifugo-change-stream/issues/485)) ([bd64591](https://github.com/cailloumajor/centrifugo-change-stream/commit/bd645914db19589d1ef5b2a9f7895ad6451b9bc2))
+* **deps:** update rust crate clap to v4.5.37 ([#489](https://github.com/cailloumajor/centrifugo-change-stream/issues/489)) ([998daec](https://github.com/cailloumajor/centrifugo-change-stream/commit/998daec56eca7a99ca758d587506426b2731da62))
+* **deps:** update rust crate clap to v4.5.38 ([#497](https://github.com/cailloumajor/centrifugo-change-stream/issues/497)) ([d1c455b](https://github.com/cailloumajor/centrifugo-change-stream/commit/d1c455b16652ee8ee0ea4c3ab749750dda521944))
+* **deps:** update rust crate clap to v4.5.39 ([#505](https://github.com/cailloumajor/centrifugo-change-stream/issues/505)) ([ef60a0e](https://github.com/cailloumajor/centrifugo-change-stream/commit/ef60a0eeaad5e86cab0d7c985ac7caa42cca29ec))
+* **deps:** update rust crate clap to v4.5.40 ([#512](https://github.com/cailloumajor/centrifugo-change-stream/issues/512)) ([70c6465](https://github.com/cailloumajor/centrifugo-change-stream/commit/70c64658d0e05e36e91b35b3242316a57d94af7e))
+* **deps:** update rust crate clap-verbosity-flag to v3.0.3 ([#502](https://github.com/cailloumajor/centrifugo-change-stream/issues/502)) ([6c2b018](https://github.com/cailloumajor/centrifugo-change-stream/commit/6c2b018ac996fea62140202ae2fce53e1f4aed4a))
+* **deps:** update rust crate mongodb to v3.2.4 ([#515](https://github.com/cailloumajor/centrifugo-change-stream/issues/515)) ([34a53dc](https://github.com/cailloumajor/centrifugo-change-stream/commit/34a53dc1017fd4e1b16d7cd42e75ff4c03c29b21))
+* **deps:** update rust crate reqwest to v0.12.16 ([#506](https://github.com/cailloumajor/centrifugo-change-stream/issues/506)) ([2881c15](https://github.com/cailloumajor/centrifugo-change-stream/commit/2881c15e4bd4a452a12fb26d1a58a25d4f262ab5))
+* **deps:** update rust crate reqwest to v0.12.18 ([#507](https://github.com/cailloumajor/centrifugo-change-stream/issues/507)) ([5c1ddbf](https://github.com/cailloumajor/centrifugo-change-stream/commit/5c1ddbf0bafc4a238ec10fd637d8efbea56f1535))
+* **deps:** update rust crate reqwest to v0.12.19 ([#509](https://github.com/cailloumajor/centrifugo-change-stream/issues/509)) ([4b5722b](https://github.com/cailloumajor/centrifugo-change-stream/commit/4b5722bb1259cc5cc3bff515aa77e3fe39b70f5b))
+* **deps:** update rust crate reqwest to v0.12.20 ([#513](https://github.com/cailloumajor/centrifugo-change-stream/issues/513)) ([b89963e](https://github.com/cailloumajor/centrifugo-change-stream/commit/b89963e1f3390e148b27eab345452c431280b0e9))
+* **deps:** update rust crate reqwest to v0.12.22 ([#516](https://github.com/cailloumajor/centrifugo-change-stream/issues/516)) ([765088d](https://github.com/cailloumajor/centrifugo-change-stream/commit/765088dd1acb870388b87ba7da9436bd6dc8dbe5))
+* **deps:** update rust crate signal-hook to v0.3.18 ([#496](https://github.com/cailloumajor/centrifugo-change-stream/issues/496)) ([9a1a39e](https://github.com/cailloumajor/centrifugo-change-stream/commit/9a1a39e1a536f031b8bb01abdb27b746571d4710))
+* **deps:** update rust crate tokio to v1.44.2 ([#482](https://github.com/cailloumajor/centrifugo-change-stream/issues/482)) ([1bb2cf0](https://github.com/cailloumajor/centrifugo-change-stream/commit/1bb2cf0d15e48a01b654b92b3b7e2a4a68b63591))
+* **deps:** update rust crate tokio to v1.45.0 ([#495](https://github.com/cailloumajor/centrifugo-change-stream/issues/495)) ([b7c1a06](https://github.com/cailloumajor/centrifugo-change-stream/commit/b7c1a069b120758a2574e0880516184960b5c14e))
+* **deps:** update rust crate tokio to v1.45.1 ([#503](https://github.com/cailloumajor/centrifugo-change-stream/issues/503)) ([091f4c5](https://github.com/cailloumajor/centrifugo-change-stream/commit/091f4c56cd40dcd53e9fe3c7678339ec807f373e))
+* **deps:** update rust crate tokio to v1.46.0 ([#518](https://github.com/cailloumajor/centrifugo-change-stream/issues/518)) ([236edcf](https://github.com/cailloumajor/centrifugo-change-stream/commit/236edcfe7451a09ba0d10354b17eadfa9fb3cda0))
+* **deps:** update rust crate tokio to v1.46.1 ([#520](https://github.com/cailloumajor/centrifugo-change-stream/issues/520)) ([7218c64](https://github.com/cailloumajor/centrifugo-change-stream/commit/7218c64992ff13cbc1a07f7d22bdbc99471c1f1b))
+* **deps:** update rust crate tokio-util to v0.7.15 ([#491](https://github.com/cailloumajor/centrifugo-change-stream/issues/491)) ([b1685b5](https://github.com/cailloumajor/centrifugo-change-stream/commit/b1685b524012ddac306a0e050b8357b35462f46c))
+* **deps:** update rust docker tag to v1.87.0 ([#480](https://github.com/cailloumajor/centrifugo-change-stream/issues/480)) ([ed54bd6](https://github.com/cailloumajor/centrifugo-change-stream/commit/ed54bd6be6841db5d744fedaf1d917fadd7469df))
+* **deps:** update rust docker tag to v1.88.0 ([#514](https://github.com/cailloumajor/centrifugo-change-stream/issues/514)) ([f585dcc](https://github.com/cailloumajor/centrifugo-change-stream/commit/f585dcc7d7da95c7426cd2c53ae86eece97c9665))
+
 ## [4.0.17](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.16...v4.0.17) (2025-03-30)
 
 
