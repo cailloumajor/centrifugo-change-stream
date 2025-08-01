@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.19](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.18...v4.0.19) (2025-08-01)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap to v4.5.41 ([#523](https://github.com/cailloumajor/centrifugo-change-stream/issues/523)) ([f4fe118](https://github.com/cailloumajor/centrifugo-change-stream/commit/f4fe118c86b5114413dd04eb7dd2d05e03927fde))
+* **deps:** update rust crate clap to v4.5.42 ([#531](https://github.com/cailloumajor/centrifugo-change-stream/issues/531)) ([d88682b](https://github.com/cailloumajor/centrifugo-change-stream/commit/d88682b7313ed8a7a994fed11cd978f2dfe495a0))
+* **deps:** update rust crate serde_json to v1.0.141 ([#527](https://github.com/cailloumajor/centrifugo-change-stream/issues/527)) ([0818e31](https://github.com/cailloumajor/centrifugo-change-stream/commit/0818e3132a657092213b8b2eebb9569a061688e7))
+* **deps:** update rust crate serde_json to v1.0.142 ([#533](https://github.com/cailloumajor/centrifugo-change-stream/issues/533)) ([43bdf53](https://github.com/cailloumajor/centrifugo-change-stream/commit/43bdf53f2cc1188aa36bd6b0bd2a545156ab4225))
+* **deps:** update rust crate tokio to v1.47.1 ([#529](https://github.com/cailloumajor/centrifugo-change-stream/issues/529)) ([0134ca2](https://github.com/cailloumajor/centrifugo-change-stream/commit/0134ca2ee8d1b0add50afe06c71c67d0af9e530a))
+
 ## [4.0.18](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.17...v4.0.18) (2025-07-08)
 
 
