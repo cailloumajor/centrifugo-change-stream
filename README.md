@@ -59,7 +59,7 @@ sequenceDiagram
 
 ## Usage
 
-```shellSession
+```console
 $ centrifugo-change-stream --help
 Usage: centrifugo-change-stream [OPTIONS] --centrifugo-api-key <CENTRIFUGO_API_KEY> --mongodb-database <MONGODB_DATABASE> --mongodb-collection <MONGODB_COLLECTION>
 
@@ -84,4 +84,5 @@ Options:
           Decrease logging verbosity
   -h, --help
           Print help
+
 ```

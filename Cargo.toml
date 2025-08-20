@@ -50,3 +50,4 @@ features = [ "ansi", "fmt", "parking_lot", "smallvec", "std" ]
 [dev-dependencies]
 mockito = "1.2"
 tower = { version = "0.5", default-features = false, features = [ "util" ] }
+trycmd = "0.15.10"
