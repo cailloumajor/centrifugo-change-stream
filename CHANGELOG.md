@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.20](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.19...v4.0.20) (2025-08-25)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate clap-verbosity-flag to v3.0.4 ([#548](https://github.com/cailloumajor/centrifugo-change-stream/issues/548)) ([ee1f68f](https://github.com/cailloumajor/centrifugo-change-stream/commit/ee1f68f730d6a0ce63b26102271a44169861838a))
+* **deps:** update rust crate mongodb to v3.2.5 ([#552](https://github.com/cailloumajor/centrifugo-change-stream/issues/552)) ([e2b1470](https://github.com/cailloumajor/centrifugo-change-stream/commit/e2b14702121efe7e12a9adf5528e7b55c85f8ffd))
+* **deps:** update rust crate serde_json to v1.0.143 ([#546](https://github.com/cailloumajor/centrifugo-change-stream/issues/546)) ([5dc4a46](https://github.com/cailloumajor/centrifugo-change-stream/commit/5dc4a467d8db39076cb1664394ea9613b61e0956))
+* **deps:** update rust crate url to v2.5.6 ([#551](https://github.com/cailloumajor/centrifugo-change-stream/issues/551)) ([ab0e63a](https://github.com/cailloumajor/centrifugo-change-stream/commit/ab0e63ad3afc414ceebc873a4d18d40b436d616e))
+* **deps:** update rust crate url to v2.5.7 ([#553](https://github.com/cailloumajor/centrifugo-change-stream/issues/553)) ([551abbb](https://github.com/cailloumajor/centrifugo-change-stream/commit/551abbbbf8988f4f12b7e38ed316dfe98d144e85))
+
 ## [4.0.19](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.18...v4.0.19) (2025-08-14)
 
 
