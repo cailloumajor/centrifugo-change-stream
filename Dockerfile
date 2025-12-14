@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/git/db \
     xx-verify bin/*
 
 # hadolint ignore=DL3006
-FROM gcr.io/distroless/cc-debian12
+FROM gcr.io/distroless/cc-debian13
 
 WORKDIR /app
 
