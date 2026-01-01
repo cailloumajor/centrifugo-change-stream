@@ -10,7 +10,6 @@ use signal_hook_tokio::Signals;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 use tracing::{Instrument, error, info, info_span, instrument};
-use tracing_log::LogTracer;
 
 use centrifugo_change_stream::CommonArgs;
 
@@ -36,7 +35,7 @@ struct Args {
     tags_update_buffer: u8,
 
     #[command(flatten)]
-    verbose: Verbosity<InfoLevel>,
+    verbosity: Verbosity<InfoLevel>,
 }
 
 #[instrument(skip_all)]
@@ -54,10 +53,8 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
-        .with_max_level(args.verbose.tracing_level())
+        .with_max_level(args.verbosity)
         .init();
-
-    LogTracer::init_with_filter(args.verbose.log_level_filter())?;
 
     let shutdown_token = CancellationToken::new();
 
