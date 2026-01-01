@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.21](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.20...v4.0.21) (2026-01-01)
+
+
+### Bug Fixes
+
+* **deps:** specify full dependencies versions ([bef9924](https://github.com/cailloumajor/centrifugo-change-stream/commit/bef99247e6c3da1f75c17fa0e2f361cab48f5c04))
+
 ## [4.0.20](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.19...v4.0.20) (2025-12-14)
 
 
