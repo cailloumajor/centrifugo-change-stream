@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "centrifugo-change-stream"
-version = "4.0.20"
+version = "4.0.21"
 dependencies = [
  "anyhow",
  "axum",
