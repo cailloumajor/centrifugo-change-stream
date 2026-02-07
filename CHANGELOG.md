@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.22](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.21...v4.0.22) (2026-02-07)
+
+
+### Bug Fixes
+
+* **deps:** update rust docker tag to v1.93.0 ([023bfc8](https://github.com/cailloumajor/centrifugo-change-stream/commit/023bfc87aa229b411f1d611039ade6a67473c52d))
+
 ## [4.0.21](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.20...v4.0.21) (2026-01-01)
 
 
