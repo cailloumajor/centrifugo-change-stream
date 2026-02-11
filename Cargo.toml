@@ -41,4 +41,4 @@ features = ["macros", "rt-multi-thread", "sync"]
 [dev-dependencies]
 mockito = "1.7.1"
 tower = { version = "0.5.2", default-features = false, features = ["util"] }
-trycmd = "0.15.11"
+trycmd = "1.0.0"
