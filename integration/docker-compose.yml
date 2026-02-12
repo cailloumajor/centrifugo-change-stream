@@ -8,7 +8,7 @@ services:
       - ./push-data.mongodb:/usr/src/push-data.mongodb:ro
 
   centrifugo:
-    image: centrifugo/centrifugo:v5.4
+    image: centrifugo/centrifugo:v6.6
     command:
       - centrifugo
       - --config=/usr/local/etc/centrifugo.toml
