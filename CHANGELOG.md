@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.0.22](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.21...v4.0.22) (2026-07-22)
+
+
+### Bug Fixes
+
+* **deps:** update rust docker tag to v1.93.0 ([023bfc8](https://github.com/cailloumajor/centrifugo-change-stream/commit/023bfc87aa229b411f1d611039ade6a67473c52d))
+* **deps:** update rust docker tag to v1.93.1 ([ad22353](https://github.com/cailloumajor/centrifugo-change-stream/commit/ad22353ad0a0d6eae6bbd553fda51a0cd4ddb25a))
+* **deps:** update rust docker tag to v1.94.0 ([b7cfcf6](https://github.com/cailloumajor/centrifugo-change-stream/commit/b7cfcf6c74e2ccf44b08b89fcf80545645a6b654))
+* **deps:** update rust docker tag to v1.94.1 ([d305a17](https://github.com/cailloumajor/centrifugo-change-stream/commit/d305a17c6be233f6a4a5a8ca48bbfc9561db7a68))
+* **deps:** update rust docker tag to v1.95.0 ([81592ce](https://github.com/cailloumajor/centrifugo-change-stream/commit/81592ce167e47b542dab01a6ef4096ba1beb936e))
+* **deps:** update rust docker tag to v1.96.1 ([c71a483](https://github.com/cailloumajor/centrifugo-change-stream/commit/c71a483a17dad5c42fa17622b3e6635e63d3f9a8))
+* **deps:** update rust docker tag to v1.97.0 ([c4f2c92](https://github.com/cailloumajor/centrifugo-change-stream/commit/c4f2c925efc3615fd3ad40a72b9549d424f37539))
+
 ## [4.0.21](https://github.com/cailloumajor/centrifugo-change-stream/compare/v4.0.20...v4.0.21) (2026-01-01)
 
 
