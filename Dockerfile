@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.9.0 AS xx
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.10.0 AS xx
 
 FROM --platform=$BUILDPLATFORM rust:1.97.0-trixie AS builder
 
